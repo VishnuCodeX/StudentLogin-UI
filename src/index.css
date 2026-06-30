@@ -1,0 +1,178 @@
+/* App type: Plus Jakarta Sans (headings) + Inter (body). Playfair Display kept for the login. */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Marcellus&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Warm beige theme */
+    --background: 42 56% 95%;
+    --foreground: 30 28% 23%;
+
+    --card: 45 70% 98%;
+    --card-foreground: 30 28% 23%;
+
+    --popover: 45 70% 98%;
+    --popover-foreground: 30 28% 23%;
+
+    /* bronze / espresso */
+    --primary: 31 31% 40%;
+    --primary-foreground: 42 60% 97%;
+
+    --secondary: 41 48% 88%;
+    --secondary-foreground: 27 32% 30%;
+
+    --muted: 40 44% 91%;
+    --muted-foreground: 34 20% 44%;
+
+    --accent: 40 48% 87%;
+    --accent-foreground: 27 30% 32%;
+
+    --success: 142 45% 38%;
+    --success-foreground: 42 60% 97%;
+
+    --warning: 36 88% 46%;
+    --warning-foreground: 30 60% 14%;
+
+    --destructive: 8 64% 50%;
+    --destructive-foreground: 42 60% 97%;
+
+    --border: 40 40% 84%;
+    --input: 39 38% 81%;
+    --ring: 31 31% 40%;
+
+    --radius: 1.25rem;
+  }
+
+  .dark {
+    --background: 256 32% 9%;
+    --foreground: 250 22% 94%;
+
+    --card: 256 28% 13%;
+    --card-foreground: 250 22% 94%;
+
+    --popover: 256 28% 14%;
+    --popover-foreground: 250 22% 94%;
+
+    --primary: 258 92% 72%;
+    --primary-foreground: 256 32% 9%;
+
+    --secondary: 256 28% 22%;
+    --secondary-foreground: 250 30% 92%;
+
+    --muted: 256 24% 18%;
+    --muted-foreground: 250 14% 64%;
+
+    --accent: 320 40% 24%;
+    --accent-foreground: 320 80% 85%;
+
+    --success: 152 55% 48%;
+    --success-foreground: 256 32% 9%;
+
+    --warning: 38 92% 58%;
+    --warning-foreground: 30 60% 10%;
+
+    --destructive: 352 78% 62%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 256 22% 24%;
+    --input: 256 22% 26%;
+    --ring: 258 92% 72%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display;
+  }
+}
+
+@layer utilities {
+  /* Warm beige gradient presets */
+  .bg-joy {
+    background-image: linear-gradient(95deg, #5c4632 0%, #8a6d4a 60%, #a4855c 100%);
+  }
+  .bg-sky-joy {
+    background-image: linear-gradient(135deg, #6b4f3a 0%, #a4855c 100%);
+  }
+  .bg-mint-joy {
+    background-image: linear-gradient(135deg, #5f6b3a 0%, #a4a45c 100%);
+  }
+  .bg-sun-joy {
+    background-image: linear-gradient(135deg, #b07d2f 0%, #d6b271 100%);
+  }
+  .text-joy-gradient {
+    background-image: linear-gradient(135deg, #6b4f3a, #a4855c);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* soft warm backdrop */
+  .bg-confetti {
+    background-image:
+      radial-gradient(42% 42% at 12% 8%, hsl(33 40% 55% / 0.16) 0%, transparent 60%),
+      radial-gradient(40% 40% at 88% 6%, hsl(40 45% 62% / 0.14) 0%, transparent 58%),
+      radial-gradient(46% 46% at 92% 92%, hsl(28 38% 50% / 0.12) 0%, transparent 60%),
+      radial-gradient(40% 40% at 6% 94%, hsl(42 50% 60% / 0.12) 0%, transparent 60%);
+  }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Print. A dedicated, formal `.print-area` document (letterhead + bordered
+   tables) is rendered hidden on screen and shown ONLY when printing. The older
+   `.printable` wrapper is still supported for screens that print their card.
+   --------------------------------------------------------------------------- */
+.print-area { display: none; }
+
+@media print {
+  @page { margin: 8mm; }
+  html, body { background: #fff !important; }
+
+  /* hide all on-screen chrome, then reveal only the print document */
+  body * { visibility: hidden !important; }
+  .print-area, .print-area *,
+  .printable, .printable * { visibility: visible !important; }
+
+  .print-area { display: block !important; }
+  .print-area,
+  .printable {
+    position: absolute !important;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  /* render our document colors/borders faithfully */
+  .print-area,
+  .print-area * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print\:hidden,
+  aside,
+  header { display: none !important; }
+
+  .bg-confetti,
+  .bg-aurora { background: none !important; }
+}

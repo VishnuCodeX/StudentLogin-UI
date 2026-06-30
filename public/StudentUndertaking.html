@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Undertaking — Placement</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f3f3f3;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: #1a1a1a;
+    }
+    .toolbar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; justify-content: center; gap: 12px;
+      padding: 12px; background: #ffffff; border-bottom: 1px solid #e2e2e2;
+    }
+    .toolbar button {
+      cursor: pointer; border: none; border-radius: 8px;
+      padding: 9px 18px; font-size: 14px; font-weight: 700;
+      background: #7a1f1f; color: #fff;
+    }
+    .toolbar button.secondary { background: #6b5840; }
+    .page {
+      width: 794px; max-width: 100%;
+      margin: 24px auto; padding: 72px 64px;
+      background: #fff; box-shadow: 0 6px 24px rgba(0,0,0,.12);
+      font-size: 14px; line-height: 1.7;
+    }
+    .page p { margin: 0 0 16px; }
+    .head p { margin: 0 0 10px; }
+    .clauses { margin: 4px 0 0; padding-left: 26px; }
+    .clauses li { margin-bottom: 16px; font-weight: 700; }
+    .sign-block { margin-top: 8px; }
+    .sign-block p { margin: 0 0 14px; }
+    .gap { height: 36px; }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .page { width: auto; margin: 0; padding: 40px 48px; box-shadow: none; }
+      @page { size: A4; margin: 16mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="window.print()">⬇ Download / Print (Save as PDF)</button>
+    <button class="secondary" onclick="window.close()">Close</button>
+  </div>
+
+  <div class="page">
+    <div class="head">
+      <p>To,</p>
+      <p>The Principal,</p>
+      <p>Mount Carmel University</p>
+      <p>Bangalore.</p>
+    </div>
+
+    <p style="margin-top:28px;">
+      This is to state that I have read the Placement Policy of the University and I'm fully aware and
+      agree to abide by the guidelines laid down by the Placement Office. I also confirm the following,
+    </p>
+
+    <ol class="clauses" type="a">
+      <li>Once I get selected by a company, I'm required to accept the offer and under no circumstances will I reject the same.</li>
+      <li>In case for some genuine reason, I'm unable to take up the offer, I will pay a penalty equivalent to one-month's salary being offered by the company, to the University.</li>
+      <li>I will submit a copy of the offer letter to the Placement Office as mentioned in the placement policy of the University.</li>
+      <li>Once a student registers/enrols for a particular company, she is expected to complete the entire recruitment process as relevant and required. Failing to do so, will result in the student being debarred from sitting for further recruitment drives.</li>
+    </ol>
+
+    <div class="gap"></div>
+
+    <p style="font-weight:700;">Signed by:</p>
+
+    <div class="gap"></div>
+
+    <div class="sign-block">
+      <p>Student Name:&nbsp;__________________________________</p>
+      <p>Signature:&nbsp;______________________________________</p>
+      <p>Phone no.:&nbsp;______________________________________</p>
+      <p>Date:&nbsp;___________________________________________</p>
+    </div>
+
+    <div class="gap"></div>
+
+    <div class="sign-block">
+      <p>Parent/Guardian Name:&nbsp;_______________________</p>
+      <p>Signature:&nbsp;______________________________________</p>
+      <p>Phone no.:&nbsp;______________________________________</p>
+      <p>Date:&nbsp;___________________________________________</p>
+    </div>
+  </div>
+</body>
+</html>
