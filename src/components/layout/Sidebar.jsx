@@ -58,7 +58,7 @@ function StudentBadge() {
 function Section({ section, tile, onNavigate }) {
   const location = useLocation();
   const Icon = section.icon;
-  const single = section.items.length === 1;
+  const single = section.items.length === 1 && !section.alwaysExpand;
   const hasActiveChild = section.items.some((i) => location.pathname === i.to);
   const [open, setOpen] = useState(hasActiveChild);
 
@@ -179,7 +179,7 @@ function SidebarInner({ onNavigate }) {
         </button>
       </div>
       {/* highlighted footer bar */}
-      <div className="bg-joy px-3 py-1.5 text-center shadow-pop">
+      <div className="bg-joy px-3 py-3 text-center shadow-pop">
         <p className="text-[12px] font-semibold tracking-wide text-white/85">
           Powered By <span className="font-extrabold text-white">MCC(IT)</span>
         </p>

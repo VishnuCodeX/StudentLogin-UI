@@ -3,6 +3,7 @@ import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, Wallet, CheckCircle2, CalendarClock } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
+import { goToGateway, handlePaymentReturn } from "@/lib/payments";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -21,13 +22,14 @@ export default function MiscPayments() {
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
+  useEffect(() => { handlePaymentReturn(); }, []);
 
   async function pay(id) {
     setBusy(id);
     try {
       const res = await unwrap(api.post(`/misc-payments/${id}/pay`));
-      toast.info(res?.message || "Payment initiated.");
-      load();
+      // Kotak/CCAvenue → auto-submits to the gateway; if not configured, shows a notice.
+      if (!goToGateway(res)) load();
     } catch {
       // error snackbar shown globally
     } finally {

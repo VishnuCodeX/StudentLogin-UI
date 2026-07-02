@@ -3,6 +3,7 @@ import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, FileWarning, CheckCircle2 } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
+import { goToGateway, handlePaymentReturn } from "@/lib/payments";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -22,6 +23,7 @@ export default function Supplementary() {
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
+  useEffect(() => { handlePaymentReturn(); }, []);
 
   const theoryFee = data?.theoryFee ?? 0;
   const practicalFee = data?.practicalFee ?? 0;
@@ -50,9 +52,9 @@ export default function Supplementary() {
     if (selections.length === 0) { toast.warning("Please select at least one subject."); return; }
     setSubmitting(true);
     try {
-      const msg = await unwrap(api.post("/supplementary/apply", { selections }));
-      toast.info(typeof msg === "string" ? msg : "Application recorded.");
-      load();
+      // Apply + pay in one step: records the rows and hands off to UCO Bank.
+      const res = await unwrap(api.post("/supplementary/apply-and-pay", { selections }));
+      if (!goToGateway(res)) load();
     } catch {
       // error snackbar shown globally
     } finally {

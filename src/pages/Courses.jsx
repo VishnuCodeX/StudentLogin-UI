@@ -3,10 +3,13 @@ import { createPortal } from "react-dom";
 import PageTitle from "@/components/PageTitle";
 import {
   Loader2, AlertTriangle, RefreshCw, ArrowLeft, BookOpen, FileText, Megaphone,
-  MessageCircle, Download, ExternalLink, CheckCircle2, Clock, GraduationCap, Pin, Plus, X, CalendarDays,
+  MessageCircle, Download, ExternalLink, CheckCircle2, Clock, GraduationCap, Pin, Plus, X, CalendarDays, Eye,
+  ClipboardCheck, ListChecks, Trophy, Repeat,
 } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
+import { setActivityContext, trackView, trackDownload, startResource } from "@/lib/lmsActivity";
+import SelfAssessmentRunner from "@/pages/lms/SelfAssessmentRunner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -34,6 +37,7 @@ const fmtSize = (b) => (!b ? "" : b < 1024 ? `${b} B` : b < 1048576 ? `${Math.ro
 const TABS = [
   ["materials", "Materials", BookOpen],
   ["assignments", "Assignments", FileText],
+  ["selfassessment", "Self Assessment", ClipboardCheck],
   ["syllabus", "Syllabus", GraduationCap],
   ["lessonplan", "Teaching Plan", CalendarDays],
   ["announcements", "Announcements", Megaphone],
@@ -46,6 +50,7 @@ export default function Courses() {
   const [assignments, setAssignments] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [submissions, setSubmissions] = useState([]);
+  const [selfAssessments, setSelfAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [active, setActive] = useState(null);       // selected subject
@@ -61,10 +66,11 @@ export default function Courses() {
       unwrap(api.get("/lms/assignments", { skipErrorToast: true })).catch(() => []),
       unwrap(api.get("/lms/announcements", { skipErrorToast: true })).catch(() => []),
       unwrap(api.get("/lms/my-submissions", { skipErrorToast: true })).catch(() => []),
+      unwrap(api.get("/lms/self-assessment", { skipErrorToast: true })).catch(() => []),
     ])
-      .then(([subj, mat, asg, ann, sub]) => {
+      .then(([subj, mat, asg, ann, sub, sa]) => {
         setInfo(subj); setMaterials(mat || []); setAssignments(asg || []);
-        setAnnouncements(ann || []); setSubmissions(sub || []);
+        setAnnouncements(ann || []); setSubmissions(sub || []); setSelfAssessments(sa || []);
       })
       .catch((e) => setError(e?.response?.data?.message || "Could not load your courses."))
       .finally(() => setLoading(false));
@@ -73,6 +79,9 @@ export default function Courses() {
 
   function reloadSubmissions() {
     unwrap(api.get("/lms/my-submissions", { skipErrorToast: true })).then(setSubmissions).catch(() => {});
+  }
+  function reloadSelfAssessments() {
+    unwrap(api.get("/lms/self-assessment", { skipErrorToast: true })).then((d) => setSelfAssessments(d || [])).catch(() => {});
   }
 
   const subjects = info?.subjects || [];
@@ -103,7 +112,8 @@ export default function Courses() {
   const chip = (on) => `rounded-full px-4 py-1.5 text-sm font-semibold transition ${on ? "bg-joy text-white shadow-card" : "bg-muted text-muted-foreground hover:bg-muted/70"}`;
 
   async function downloadFile(kind, f) {
-    if (f.isLink && f.link) { window.open(f.link, "_blank", "noopener,noreferrer"); return; }
+    const resType = kind === "assignment" ? "ASSIGNMENT" : "MATERIAL";
+    if (f.isLink && f.link) { trackView(resType, f.id, f.title); window.open(f.link, "_blank", "noopener,noreferrer"); return; }
     setBusyId(kind + f.id);
     try {
       const url = kind === "assignment" ? `/lms/assignment-download/${f.id}` : `/lms/download/${f.id}`;
@@ -114,10 +124,16 @@ export default function Courses() {
       a.href = href; a.download = f.filename || f.title || "download";
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(href), 1000);
+      trackDownload(resType, f.id, f.title);
     } catch (e) {
       toast.error(e?.response?.status === 404 ? "File is no longer available." : "Download failed.");
     } finally { setBusyId(null); }
   }
+
+  // Tell the analytics emitter which subject the events belong to.
+  useEffect(() => {
+    if (active) setActivityContext({ subjectId: active.subjectId, batchYear: info?.academicYear });
+  }, [active, info]);
 
   if (loading) return <div className="flex h-64 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading courses…</div>;
   if (error) return <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center"><AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p><Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button></CardContent></Card>;
@@ -132,9 +148,10 @@ export default function Courses() {
         materials={materials.filter((m) => m.subjectCode === active.subjectCode)}
         assignments={assignments.filter((a) => a.subjectCode === active.subjectCode)}
         announcements={announcements.filter((a) => a.subjectId === active.subjectId)}
+        selfAssessments={selfAssessments.filter((s) => s.subjectId === active.subjectId)}
         submissions={submissions}
         busyId={busyId} downloadFile={downloadFile}
-        reloadSubmissions={reloadSubmissions}
+        reloadSubmissions={reloadSubmissions} reloadSelfAssessments={reloadSelfAssessments}
       />
     );
   }
@@ -189,13 +206,15 @@ export default function Courses() {
   );
 }
 
-function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, announcements, submissions, busyId, downloadFile, reloadSubmissions }) {
+function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, announcements, selfAssessments, submissions, busyId, downloadFile, reloadSubmissions, reloadSelfAssessments }) {
+  const [takingSA, setTakingSA] = useState(null); // self-assessment being attempted
   const [threads, setThreads] = useState(null);
   const [openThread, setOpenThread] = useState(null);
   const [submitFor, setSubmitFor] = useState(null); // assignment being submitted
   const [askOpen, setAskOpen] = useState(false);
   const [syllabus, setSyllabus] = useState(null);
   const [lessonPlan, setLessonPlan] = useState(null);
+  const [viewing, setViewing] = useState(null); // { item, kind } — in-place viewer
 
   function loadThreads() {
     setThreads(null);
@@ -246,6 +265,7 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
 
       {tab === "materials" && (
         <FileList items={materials} kind="material" busyId={busyId} downloadFile={downloadFile}
+          onView={(item) => setViewing({ item, kind: "material" })}
           empty="No study materials posted yet." />
       )}
 
@@ -272,10 +292,53 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
                       </div>
                       {s?.feedback && <p className="mt-1.5 rounded-lg bg-muted/50 p-2 text-xs"><b>Feedback:</b> {s.feedback}</p>}
                     </div>
-                    <Button variant="ghost" size="icon" title={a.isLink ? "Open" : "Download"} disabled={busyId === "assignment" + a.id}
-                      onClick={() => downloadFile("assignment", a)}
-                      className="h-9 w-9 shrink-0 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
-                      {busyId === "assignment" + a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : a.isLink ? <ExternalLink className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <Button variant="ghost" size="icon" title="View" onClick={() => setViewing({ item: a, kind: "assignment" })}
+                        className="h-9 w-9 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title={a.isLink ? "Open" : "Download"} disabled={busyId === "assignment" + a.id}
+                        onClick={() => downloadFile("assignment", a)}
+                        className="h-9 w-9 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
+                        {busyId === "assignment" + a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : a.isLink ? <ExternalLink className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent></Card>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {tab === "selfassessment" && (
+        (selfAssessments || []).length === 0 ? (
+          <Empty text="No practice quizzes published for this subject yet." />
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">Practice quizzes — for your own feedback only. They don't affect your marks, and you can retake them freely.</p>
+            {selfAssessments.map((s) => {
+              const done = s.attempts > 0;
+              return (
+                <Card key={s.id}><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="bg-joy grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-white"><ListChecks className="h-5 w-5" /></span>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{s.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {s.questionCount} question{s.questionCount === 1 ? "" : "s"} · {s.totalMarks} marks
+                        {done ? ` · ${s.attempts} attempt${s.attempts === 1 ? "" : "s"}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    {done && (
+                      <span className="flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-xs font-bold text-success">
+                        <Trophy className="h-3.5 w-3.5" /> Best {s.bestScore}/{s.totalMarks}
+                      </span>
+                    )}
+                    <Button className="bg-joy text-white" size="sm" onClick={() => setTakingSA(s)}>
+                      {done ? <><Repeat className="h-4 w-4" /> Retake</> : <><ClipboardCheck className="h-4 w-4" /> Start</>}
                     </Button>
                   </div>
                 </CardContent></Card>
@@ -283,6 +346,11 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
             })}
           </div>
         )
+      )}
+
+      {takingSA && (
+        <SelfAssessmentRunner item={takingSA}
+          onExit={() => { setTakingSA(null); reloadSelfAssessments && reloadSelfAssessments(); }} />
       )}
 
       {tab === "syllabus" && (
@@ -424,7 +492,122 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
         <AskModal subjectId={subject.subjectId} onClose={() => setAskOpen(false)}
           onDone={() => { setAskOpen(false); loadThreads(); }} />
       )}
+      {viewing && (
+        <ResourceViewer item={viewing.item} kind={viewing.kind}
+          onClose={() => setViewing(null)} downloadFile={downloadFile} />
+      )}
     </div>
+  );
+}
+
+// ── In-place viewer for a material/assignment. Renders PDF/images inline (auth'd blob),
+// embeds YouTube, iframes other links (with an open-in-new-tab fallback), and offers a
+// download for Word/Office/other. Logs a VIEW event + the dwell TIME to learning analytics. ──
+function ytId(url) {
+  const m = String(url || "").match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/))([\w-]{11})/);
+  return m ? m[1] : null;
+}
+function resourceExt(item) {
+  const s = String(item.filename || item.fileName || item.title || "").toLowerCase();
+  const m = s.match(/\.([a-z0-9]+)(?:\?.*)?$/);
+  return (m ? m[1] : String(item.fileType || "").toLowerCase());
+}
+function classifyResource(item) {
+  if (item.isLink && item.link) return ytId(item.link) ? "youtube" : "link";
+  const e = resourceExt(item);
+  if (e === "pdf") return "pdf";
+  if (["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(e)) return "image";
+  if (["doc", "docx", "ppt", "pptx", "xls", "xlsx"].includes(e)) return "office";
+  return "other";
+}
+
+function ResourceViewer({ item, kind, onClose, downloadFile }) {
+  const resType = kind === "assignment" ? "ASSIGNMENT" : "MATERIAL";
+  const type = classifyResource(item);
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [loadingBlob, setLoadingBlob] = useState(type === "pdf" || type === "image");
+  const [err, setErr] = useState("");
+
+  // log VIEW + accumulate dwell time (TIME on close)
+  useEffect(() => {
+    trackView(resType, item.id, item.title);
+    const stop = startResource(resType, item.id, item.title);
+    return () => stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
+
+  // fetch the file (authenticated) for inline PDF / image preview
+  useEffect(() => {
+    if (type !== "pdf" && type !== "image") return undefined;
+    let cancelled = false; let url = null;
+    setLoadingBlob(true); setErr("");
+    const endpoint = kind === "assignment" ? `/lms/assignment-download/${item.id}` : `/lms/download/${item.id}`;
+    api.get(endpoint, { responseType: "blob", skipErrorToast: true })
+      .then((res) => {
+        if (cancelled) return;
+        const blob = new Blob([res.data], { type: res.headers["content-type"] || "application/octet-stream" });
+        url = URL.createObjectURL(blob);
+        setBlobUrl(url);
+      })
+      .catch(() => { if (!cancelled) setErr("This file is no longer available."); })
+      .finally(() => { if (!cancelled) setLoadingBlob(false); });
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
+  }, [item.id, type, kind]);
+
+  const yt = type === "youtube" ? ytId(item.link) : null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[95] flex items-center justify-center p-3 sm:p-6">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative flex h-[86vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-pop">
+        <div className="flex items-center justify-between gap-3 bg-joy px-5 py-3 text-white">
+          <div className="min-w-0">
+            <p className="truncate font-display text-base font-bold">{item.title || item.filename}</p>
+            <p className="text-[11px] text-white/70">
+              {resType === "ASSIGNMENT" ? "Assignment" : "Material"}
+              {item.fileType ? ` · ${String(item.fileType).toUpperCase()}` : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {(type === "link" || type === "youtube") && item.link && (
+              <a href={item.link} target="_blank" rel="noopener noreferrer"
+                className="rounded-lg bg-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/25">Open in new tab</a>
+            )}
+            {(type === "office" || type === "other") && (
+              <button onClick={() => downloadFile(kind, item)}
+                className="rounded-lg bg-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/25">Download</button>
+            )}
+            <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-white/85 hover:bg-white/15"><X className="h-4 w-4" /></button>
+          </div>
+        </div>
+        <div className="relative flex-1 bg-[#1f1a17]">
+          {loadingBlob ? (
+            <div className="flex h-full items-center justify-center text-white/80"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>
+          ) : err ? (
+            <div className="flex h-full items-center justify-center text-white/80">{err}</div>
+          ) : type === "youtube" && yt ? (
+            <iframe title={item.title} className="h-full w-full" src={`https://www.youtube.com/embed/${yt}`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+          ) : type === "pdf" && blobUrl ? (
+            <iframe title={item.title} className="h-full w-full" src={blobUrl} />
+          ) : type === "image" && blobUrl ? (
+            <div className="flex h-full items-center justify-center overflow-auto p-4">
+              <img src={blobUrl} alt={item.title} className="max-h-full max-w-full object-contain" />
+            </div>
+          ) : type === "link" ? (
+            <iframe title={item.title} className="h-full w-full bg-white" src={item.link}
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms" />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-white/80">
+              <FileText className="h-10 w-10" />
+              <p>This file type can't be previewed in the browser.</p>
+              <Button onClick={() => downloadFile(kind, item)} className="bg-joy text-white"><Download className="h-4 w-4" /> Download to view</Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.getElementById("modal-root") || document.body
   );
 }
 
@@ -487,7 +670,7 @@ function AskModal({ subjectId, onClose, onDone }) {
   );
 }
 
-function FileList({ items, kind, busyId, downloadFile, empty }) {
+function FileList({ items, kind, busyId, downloadFile, onView, empty }) {
   if (!items.length) return <Empty text={empty} />;
   return (
     <div className="space-y-2">
@@ -498,11 +681,19 @@ function FileList({ items, kind, busyId, downloadFile, empty }) {
             <p className="truncate text-sm font-semibold">{f.title || f.filename}</p>
             <p className="text-xs text-muted-foreground">{f.fileType?.toUpperCase()}{fmtSize(f.fileSize) ? ` · ${fmtSize(f.fileSize)}` : ""}{f.startDate ? ` · ${f.startDate}` : ""}</p>
           </div>
-          <Button variant="ghost" size="icon" title={f.isLink ? "Open link" : "Download"} disabled={busyId === kind + f.id}
-            onClick={() => downloadFile(kind, f)}
-            className="h-9 w-9 shrink-0 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
-            {busyId === kind + f.id ? <Loader2 className="h-4 w-4 animate-spin" /> : f.isLink ? <ExternalLink className="h-4 w-4" /> : <Download className="h-4 w-4" />}
-          </Button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {onView && (
+              <Button variant="ghost" size="icon" title="View" onClick={() => onView(f)}
+                className="h-9 w-9 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
+                <Eye className="h-4 w-4" />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" title={f.isLink ? "Open link" : "Download"} disabled={busyId === kind + f.id}
+              onClick={() => downloadFile(kind, f)}
+              className="h-9 w-9 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
+              {busyId === kind + f.id ? <Loader2 className="h-4 w-4 animate-spin" /> : f.isLink ? <ExternalLink className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       ))}
     </div>

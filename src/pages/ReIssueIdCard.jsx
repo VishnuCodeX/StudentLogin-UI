@@ -3,6 +3,7 @@ import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, CreditCard, Send, CheckCircle2, Clock } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
+import { goToGateway, handlePaymentReturn } from "@/lib/payments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,17 @@ export default function ReIssueIdCard() {
   const [error, setError] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [paying, setPaying] = useState(null);
+
+  async function payFee(id) {
+    setPaying(id);
+    try {
+      const res = await unwrap(api.post(`/idcard/${id}/pay`, {}, { skipErrorToast: true }));
+      if (!goToGateway(res)) load();
+    } catch {
+      /* global toast */
+    } finally { setPaying(null); }
+  }
 
   function load() {
     setLoading(true);
@@ -33,6 +45,7 @@ export default function ReIssueIdCard() {
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
+  useEffect(() => { handlePaymentReturn(); }, []);
 
   async function submit(e) {
     e.preventDefault();
@@ -103,7 +116,13 @@ export default function ReIssueIdCard() {
                     {r.appliedDate} {r.regAmount && `· ₹${r.regAmount}`} {r.paid ? "· Paid" : "· Payment pending"}
                   </p>
                 </div>
-                <StatusBadge status={r.status} />
+                {!r.paid ? (
+                  <Button size="sm" variant="gradient" disabled={paying === r.id} onClick={() => payFee(r.id)}>
+                    {paying === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />} Pay ₹{r.regAmount}
+                  </Button>
+                ) : (
+                  <StatusBadge status={r.status} />
+                )}
               </div>
             ))}
           </CardContent>

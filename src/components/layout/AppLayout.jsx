@@ -49,7 +49,7 @@ export default function AppLayout() {
           </div>
         </main>
         {/* Footer bar — matches the sidebar's "Powered By MCC(IT)" band. */}
-        <footer className="bg-joy px-4 py-1.5 text-white/85 lg:px-8">
+        <footer className="bg-joy px-4 py-3 text-white/85 lg:px-8">
           <div className="mx-auto grid w-full max-w-6xl grid-cols-3 items-center gap-3 text-[12px] font-semibold">
             <span className="justify-self-start">
               <CarmelNexusBrand size={16} textSize={12} light />

@@ -35,15 +35,24 @@ export const NAV_SECTIONS = [
   {
     label: "LMS",
     icon: BookOpen,
+    alwaysExpand: true,
     items: [
       { to: "/lms/courses", label: "My Courses" },
-      { to: "/lms/materials", label: "Study Materials" },
-      { to: "/lms/assignments", label: "Assignments" },
+    ],
+  },
+  {
+    label: "OBE",
+    icon: ClipboardCheck,
+    items: [
+      { to: "/obe/quizzes", label: "Quiz" },
+      { to: "/obe/surveys", label: "Survey" },
+      { to: "/obe/results", label: "Result" },
     ],
   },
   {
     label: "Time Table",
     icon: CalendarDays,
+    alwaysExpand: true,
     items: [
       { to: "/timetable/class", label: "View My Time Table" },
     ],
@@ -61,6 +70,7 @@ export const NAV_SECTIONS = [
     icon: FileText,
     items: [
       { to: "/apply/supplementary", label: "Supplementary Application" },
+      { to: "/apply/certificates", label: "Apply for Certificates" },
       { to: "/apply/cee", label: "CEE Application" },
       { to: "/apply/idc", label: "Inter/Multi-disciplinary Course" },
       { to: "/apply/misc-payments", label: "Miscellaneous Payments" },

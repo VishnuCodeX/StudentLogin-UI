@@ -3,6 +3,7 @@ import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, Award, Users, CalendarClock, Receipt, BookOpen } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
+import { goToGateway, handlePaymentReturn } from "@/lib/payments";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -32,13 +33,14 @@ export default function Cee() {
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
+  useEffect(() => { handlePaymentReturn() === "success" && load(); }, []);
 
+  // Apply + pay in one step: the backend records the (unpaid) row and hands off to UCO Bank.
   async function apply(id) {
     setBusy(id);
     try {
-      const msg = await unwrap(api.post(`/cee/${id}/apply`));
-      toast.info(typeof msg === "string" ? msg : "Application recorded.");
-      load();
+      const res = await unwrap(api.post(`/cee/${id}/pay`));
+      if (!goToGateway(res)) load();
     } catch {
       // error snackbar shown globally
     } finally {

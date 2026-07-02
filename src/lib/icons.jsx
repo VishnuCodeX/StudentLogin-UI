@@ -45,6 +45,8 @@ import {
   FloppyDisk as PhFloppyDisk,
   MagnifyingGlass as PhSearch,
   PaperPlaneTilt as PhSend,
+  Truck as PhTruck,
+  Buildings as PhBuildings,
   ShieldCheck as PhShieldCheck,
   Sparkle as PhSparkle,
   Ticket as PhTicket,
@@ -132,6 +134,8 @@ export const Receipt = make(PhReceipt, DUO);
 export const Repeat = make(PhRepeat, DUO);
 export const Save = make(PhFloppyDisk, DUO);
 export const Send = make(PhSend, DUO);
+export const Truck = make(PhTruck, DUO);
+export const Buildings = make(PhBuildings, DUO);
 export const ShieldCheck = make(PhShieldCheck, DUO);
 export const Sparkles = make(PhSparkle, DUO);
 export const Ticket = make(PhTicket, DUO);

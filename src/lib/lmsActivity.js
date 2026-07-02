@@ -6,7 +6,7 @@
 // unload via navigator.sendBeacon) so we never fire one request per click. Firing is
 // strictly best-effort — a failed POST must never block the student's real action.
 import { LMS_BASE, logActivityBatch } from "@/lib/lmsApi";
-import { getStudent } from "@/lib/auth";
+import { getStudent, getToken } from "@/lib/auth";
 
 const BATCH_URL = `${LMS_BASE}/lms/Activity/v1/logBatch`;
 let queue = [];
@@ -57,7 +57,9 @@ export function flush() {
   logActivityBatch(events).catch(() => {}); // best-effort
 }
 
-// fire-and-forget flush that survives page unload
+// fire-and-forget flush that survives page unload. Uses fetch({keepalive}) so the JWT
+// Authorization header is still sent (navigator.sendBeacon can't set headers, and our
+// activity endpoint is auth-gated so identity is resolved server-side).
 function beaconFlush() {
   clearTimeout(flushTimer);
   flushTimer = null;
@@ -65,13 +67,15 @@ function beaconFlush() {
   const events = queue;
   queue = [];
   try {
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(BATCH_URL, new Blob([JSON.stringify(events)], { type: "application/json" }));
-    } else {
-      logActivityBatch(events).catch(() => {});
-    }
+    const token = getToken();
+    fetch(BATCH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(events),
+      keepalive: true,
+    }).catch(() => {});
   } catch {
-    /* best-effort */
+    logActivityBatch(events).catch(() => {}); // best-effort fallback
   }
 }
 
@@ -100,5 +104,18 @@ export function startScreen(label) {
     stopped = true;
     const seconds = Math.round((Date.now() - t0) / 1000);
     if (seconds > 0) enqueue({ eventType: "TIME", resourceType: "SCREEN", resourceName: label, durationSeconds: seconds });
+  };
+}
+
+// TIME on a specific resource (a material/assignment the student is viewing). Call when the
+// viewer opens; the returned stop() (on close) sends one TIME event with the dwell seconds.
+export function startResource(resourceType, resourceId, resourceName) {
+  const t0 = Date.now();
+  let stopped = false;
+  return function stop() {
+    if (stopped) return;
+    stopped = true;
+    const seconds = Math.round((Date.now() - t0) / 1000);
+    if (seconds > 0) enqueue({ eventType: "TIME", resourceType, resourceId, resourceName, durationSeconds: seconds });
   };
 }

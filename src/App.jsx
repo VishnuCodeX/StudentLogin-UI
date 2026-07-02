@@ -6,14 +6,16 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Attendance from "@/pages/Attendance";
 import Fees from "@/pages/Fees";
-import Lms from "@/pages/Lms";
 import Courses from "@/pages/Courses";
+import ObeList from "@/pages/obe/ObeList";
+import ObeResults from "@/pages/obe/ObeResults";
 import TimeTable from "@/pages/TimeTable";
 import ExamTimeTable from "@/pages/ExamTimeTable";
 import HallTickets from "@/pages/HallTickets";
 import OnlineApplications from "@/pages/OnlineApplications";
 import MiscPayments from "@/pages/MiscPayments";
 import Cee from "@/pages/Cee";
+import Certificates from "@/pages/Certificates";
 import Supplementary from "@/pages/Supplementary";
 import HostelLeave from "@/pages/HostelLeave";
 import Idc from "@/pages/Idc";
@@ -52,8 +54,10 @@ export default function App() {
 
           {/* LMS */}
           <Route path="/lms/courses" element={<Courses />} />
-          <Route path="/lms/materials" element={<Lms />} />
-          <Route path="/lms/assignments" element={<Lms kind="assignments" />} />
+
+          <Route path="/obe/quizzes" element={<ObeList kind="quiz" />} />
+          <Route path="/obe/surveys" element={<ObeList kind="survey" />} />
+          <Route path="/obe/results" element={<ObeResults />} />
 
           {/* Time Table */}
           <Route path="/timetable/class" element={<TimeTable />} />
@@ -69,6 +73,7 @@ export default function App() {
           <Route path="/apply/supplementary" element={<Supplementary />} />
           <Route path="/apply/hostel-leave" element={<HostelLeave />} />
           <Route path="/apply/cee" element={<Cee />} />
+          <Route path="/apply/certificates" element={<Certificates />} />
           <Route path="/apply/idc" element={<Idc />} />
           <Route path="/apply/misc-payments" element={<MiscPayments />} />
           <Route path="/apply/extra-course" element={<OnlineApplications />} />

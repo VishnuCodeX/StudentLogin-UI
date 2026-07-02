@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import PageTitle from "@/components/PageTitle";
-import { Loader2, AlertTriangle, RefreshCw, Briefcase, Save, Plus, X, Download, CheckCircle2 } from "@/lib/icons";
+import { Loader2, AlertTriangle, RefreshCw, Briefcase, Save, Plus, X, Download, CheckCircle2, CreditCard } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -204,6 +204,7 @@ export default function Placement() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [showPolicy, setShowPolicy] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   const f = (k) => form[k] ?? "";
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -233,6 +234,43 @@ export default function Placement() {
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
+
+  // Handle the return from the Kotak/CCAvenue gateway (our backend redirects here with ?payment=…).
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("payment");
+    if (p === "success") toast.success("Payment successful — your placement registration fee is paid.");
+    else if (p === "failed") toast.error("Payment was not completed. Please try again.");
+    if (p) window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
+  // Start the placement fee payment → the backend returns the AES-encrypted CCAvenue request;
+  // we auto-POST it to the gateway's hosted payment page (a real browser navigation).
+  async function payFee() {
+    setPaying(true);
+    try {
+      const res = await unwrap(api.post("/placement/registration/pay", {}, { skipErrorToast: true }));
+      if (res?.gatewayConfigured && res.forwardUrl && res.encRequest) {
+        const gForm = document.createElement("form");
+        gForm.method = "POST";
+        gForm.action = res.forwardUrl;
+        const add = (n, v) => {
+          const i = document.createElement("input");
+          i.type = "hidden"; i.name = n; i.value = v ?? "";
+          gForm.appendChild(i);
+        };
+        add("encRequest", res.encRequest);
+        add("access_code", res.accessCode);
+        document.body.appendChild(gForm);
+        gForm.submit();
+      } else {
+        toast.info(res?.message || "Online payment gateway is not enabled yet.");
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Could not start payment. Please try again.");
+    } finally {
+      setPaying(false);
+    }
+  }
 
   // Continue → validate, then open the Placement Policy modal (mirrors the legacy flow).
   function openPolicy(e) {
@@ -290,6 +328,34 @@ export default function Placement() {
           {d.registered ? "Registered" : "Not registered"}
         </span>
       </div>
+
+      {/* registration fee / payment */}
+      {d.registered && (d.paid || d.fee != null) && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
+            <div className="min-w-0">
+              <p className="font-display text-base font-bold">Placement Registration Fee</p>
+              {d.paid ? (
+                <p className="flex items-center gap-1.5 text-sm text-success">
+                  <CheckCircle2 className="h-4 w-4" /> Paid — your placement registration is complete.
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  A one-time registration fee is payable to complete your placement registration.
+                </p>
+              )}
+            </div>
+            {d.paid ? (
+              <span className="rounded-full bg-success/15 px-3 py-1.5 text-sm font-bold text-success">Paid</span>
+            ) : (
+              <Button variant="gradient" onClick={payFee} disabled={paying}>
+                {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                Pay ₹{d.fee}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* read-only details */}
       <Card>
