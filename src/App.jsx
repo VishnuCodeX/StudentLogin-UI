@@ -34,7 +34,7 @@ import Placeholder from "@/pages/Placeholder";
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/CarmelNexus">
       <Toaster />
       <ConfirmHost />
       {/* Portal target for modals — sits at the app root so `position: fixed`

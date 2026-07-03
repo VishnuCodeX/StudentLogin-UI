@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, GraduationCap, ShieldCheck, CalendarCheck, ArrowRight } from "@/lib/icons";
 import Logo from "@/components/Logo";
 import CarmelNexusBrand from "@/components/CarmelNexusBrand";
+import PoweredByBadge from "@/components/PoweredByBadge";
 import api from "@/lib/api";
 import { saveSession } from "@/lib/auth";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -340,9 +341,7 @@ export default function Login() {
               <CarmelNexusBrand size={34} />
               <span className="rounded-md bg-black/[0.06] px-2 py-0.5 text-[11px] font-semibold" style={{ color: "#8a7458" }}>v 1.0.1</span>
             </div>
-            <p className="text-xs font-semibold tracking-wide" style={{ color: "#8a7458" }}>
-              Powered By <span className="font-extrabold" style={{ color: ESPRESSO }}>MCC(IT)</span>
-            </p>
+            <PoweredByBadge />
           </div>
           <p className="mt-2 text-center text-xs lg:hidden" style={{ color: "#a08861" }}>
             © {new Date().getFullYear()} Mount Carmel University, Bengaluru.

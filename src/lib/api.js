@@ -14,6 +14,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Raw window.location redirects (outside React Router) must be prefixed with the app's base
+// path — import.meta.env.BASE_URL reflects vite.config.js's `base` ("/CarmelNexus/" in prod,
+// "/" in local dev), so this works in both without hardcoding the deployment path.
+const LOGIN_PATH = `${import.meta.env.BASE_URL}login`.replace(/\/{2,}/g, "/");
+
 // Global response handling: 401/403 → session expired + redirect; everything else
 // surfaces an error snackbar (unless the caller opts out with `skipErrorToast: true`).
 api.interceptors.response.use(
@@ -22,9 +27,9 @@ api.interceptors.response.use(
     const status = error?.response?.status;
     if (status === 401 || status === 403) {
       clearSession();
-      if (window.location.pathname !== "/login") {
+      if (!window.location.pathname.endsWith("/login")) {
         toast.info("Your session has expired. Please sign in again.");
-        window.location.href = "/login";
+        window.location.href = LOGIN_PATH;
       }
       return Promise.reject(error);
     }

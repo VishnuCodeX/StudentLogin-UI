@@ -1,6 +1,8 @@
 {
-  "name": "new-studentapplication",
+  "name": "CarmelNexus",
   "private": true,
+  "homepage": "https://pre.mccblr.edu.in/CarmelNexus",
+  "proxy": "https://pre.mccblr.edu.in/CarmelNexus",
   "version": "0.1.0",
   "type": "module",
   "scripts": {

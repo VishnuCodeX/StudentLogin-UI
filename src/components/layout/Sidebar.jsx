@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { NAV_SECTIONS } from "@/config/nav";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
+import PoweredByBadge from "@/components/PoweredByBadge";
 import { getStudent, clearSession, getAvatar } from "@/lib/auth";
 import { confirm } from "@/lib/confirm";
 
@@ -178,11 +179,9 @@ function SidebarInner({ onNavigate }) {
           Logout
         </button>
       </div>
-      {/* highlighted footer bar */}
-      <div className="bg-joy px-3 py-3 text-center shadow-pop">
-        <p className="text-[12px] font-semibold tracking-wide text-white/85">
-          Powered By <span className="font-extrabold text-white">MCC(IT)</span>
-        </p>
+      {/* footer bar */}
+      <div className="border-t border-border bg-muted/50 px-3 py-3 flex justify-center">
+        <PoweredByBadge />
       </div>
     </div>
   );
