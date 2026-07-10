@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageTitle from "@/components/PageTitle";
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, ClipboardCheck } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import AbsenceModal from "@/components/AbsenceModal";
+import PresentModal from "@/components/PresentModal";
 
 function tone(pct) {
   if (pct < 75) return "#c5552f";
@@ -146,6 +147,8 @@ export default function Attendance() {
   const [error, setError] = useState("");
   const [tab, setTab] = useState("details");
   const [popup, setPopup] = useState(null);
+  const [presentPopup, setPresentPopup] = useState(null);
+  const [semFilter, setSemFilter] = useState(null); // a semester number, or "ALL"
 
   async function load() {
     setLoading(true); setError("");
@@ -154,14 +157,32 @@ export default function Attendance() {
     finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
+  useEffect(() => { if (semFilter == null && data?.currentSemester != null) setSemFilter(data.currentSemester); }, [data, semFilter]);
+
+  // Attendance history spans every semester a student has had classes in, so subjects are
+  // tagged with a semester (see backend findSubjectWiseAttendance) and filterable here —
+  // defaults to the student's current semester; "All" shows the full record.
+  // These must run on every render (Rules of Hooks) — kept above the loading/error guards below,
+  // with data-safe fallbacks so they're harmless before the fetch resolves.
+  const subjects = data?.subjects || [];
+  const semesters = useMemo(
+    () => [...new Set(subjects.map((s) => s.semester).filter((n) => n != null))].sort((a, b) => a - b),
+    [subjects]
+  );
+  const shownSubjects = useMemo(() => {
+    if (semFilter == null || semFilter === "ALL") return subjects;
+    return subjects.filter((s) =>
+      s.semester != null ? s.semester === semFilter : semFilter === data?.currentSemester
+    );
+  }, [subjects, semFilter, data]);
 
   if (loading) return <div className="flex h-64 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading attendance…</div>;
   if (error) return <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center"><AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p><Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button></CardContent></Card>;
 
-  const subjects = data?.subjects || [];
   const activities = data?.activities || [];
   const presentWithCl = data?.overallPercentageWithLeave ?? 0;
   const overallNoCl = data?.overallPercentageWithoutLeave ?? 0;
+  const chip = (on) => `rounded-full px-4 py-1.5 text-sm font-semibold transition ${on ? "bg-joy text-white shadow-card" : "bg-muted text-muted-foreground hover:bg-muted/70"}`;
 
   return (
     <div className="space-y-6">
@@ -197,14 +218,29 @@ export default function Attendance() {
         ))}
       </div>
 
+      {/* semester filter — applies to the subject list below (Details + Subjectwise Chart) */}
+      {(tab === "details" || tab === "subject") && semesters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Semester</span>
+          {semesters.map((n) => (
+            <button key={n} onClick={() => setSemFilter(n)} className={chip(semFilter === n)}>Sem {n}</button>
+          ))}
+          <button onClick={() => setSemFilter("ALL")} className={chip(semFilter === "ALL")}>All</button>
+        </div>
+      )}
+
       {tab === "details" && (
         <>
-          <AttendanceSection title="Subject-wise Attendance" rows={subjects} firstColLabel="Subject" onAbsent={setPopup} />
+          {shownSubjects.length === 0 ? (
+            <Card><CardContent className="py-14 text-center text-muted-foreground">No subject attendance for this semester.</CardContent></Card>
+          ) : (
+            <AttendanceSection title="Subject-wise Attendance" rows={shownSubjects} firstColLabel="Subject" onAbsent={setPopup} onPresent={setPresentPopup} />
+          )}
           {activities.length > 0 && (
-            <AttendanceSection title="Activity Attendance" subtitle="NCC, sports, clubs and other co-curricular activities" rows={activities} firstColLabel="Activity" onAbsent={setPopup} />
+            <AttendanceSection title="Activity Attendance" subtitle="NCC, sports, clubs and other co-curricular activities" rows={activities} firstColLabel="Activity" onAbsent={setPopup} onPresent={setPresentPopup} />
           )}
           <p className="rounded-2xl border border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
-            Click an <b>Absent</b> count to see the dates &amp; periods · CL = co-curricular leave · Eligibility is 75% per subject.
+            Click a <b>Present</b> or <b>Absent</b> count to see the dates &amp; periods · CL = co-curricular leave · Eligibility is 75% per subject.
           </p>
         </>
       )}
@@ -212,7 +248,7 @@ export default function Attendance() {
       {tab === "subject" && (
         <Card><CardContent className="p-5">
           <p className="mb-2 text-sm font-semibold text-muted-foreground">Percentage (without CL) per subject</p>
-          <BarChart subjects={subjects} />
+          <BarChart subjects={shownSubjects} />
         </CardContent></Card>
       )}
 
@@ -223,11 +259,12 @@ export default function Attendance() {
       )}
 
       {popup && <AbsenceModal subject={popup} onClose={() => setPopup(null)} />}
+      {presentPopup && <PresentModal subject={presentPopup} onClose={() => setPresentPopup(null)} />}
     </div>
   );
 }
 
-function AttendanceSection({ title, subtitle, rows, firstColLabel, onAbsent }) {
+function AttendanceSection({ title, subtitle, rows, firstColLabel, onAbsent, onPresent }) {
   return (
     <>
       <Card className="hidden md:block">
@@ -253,7 +290,13 @@ function AttendanceSection({ title, subtitle, rows, firstColLabel, onAbsent }) {
                   <tr key={`${s.subjectCode}-${i}`} className="border-b border-border last:border-0 hover:bg-muted/40">
                     <td className="px-5 py-3"><p className="font-medium">{s.subjectName}</p><p className="text-xs text-muted-foreground">{s.subjectCode}</p></td>
                     <td className="px-3 py-3 text-center tabular-nums">{s.conductedClasses}</td>
-                    <td className="px-3 py-3 text-center tabular-nums text-success">{s.classesPresent}</td>
+                    <td className="px-3 py-3 text-center">
+                      {s.classesPresent > 0 && s.subjectId ? (
+                        <button onClick={() => onPresent(s)} className="font-bold text-success underline decoration-dotted underline-offset-2 hover:opacity-80 tabular-nums">{s.classesPresent}</button>
+                      ) : (
+                        <span className="tabular-nums text-success">{s.classesPresent}</span>
+                      )}
+                    </td>
                     <td className="px-3 py-3 text-center">
                       {s.classesAbsent > 0 && s.subjectId ? (
                         <button onClick={() => onAbsent(s)} className="font-bold text-destructive underline decoration-dotted underline-offset-2 hover:opacity-80 tabular-nums">{s.classesAbsent}</button>
@@ -283,7 +326,12 @@ function AttendanceSection({ title, subtitle, rows, firstColLabel, onAbsent }) {
               </div>
               <div className="grid grid-cols-4 gap-2 text-center text-xs">
                 <div><p className="font-semibold">{s.conductedClasses}</p><p className="text-muted-foreground">Held</p></div>
-                <div><p className="font-semibold text-success">{s.classesPresent}</p><p className="text-muted-foreground">Present</p></div>
+                <div>
+                  {s.classesPresent > 0 && s.subjectId ? (
+                    <button onClick={() => onPresent(s)} className="font-semibold text-success underline decoration-dotted">{s.classesPresent}</button>
+                  ) : <p className="font-semibold text-success">{s.classesPresent}</p>}
+                  <p className="text-muted-foreground">Present</p>
+                </div>
                 <div>
                   {s.classesAbsent > 0 && s.subjectId ? (
                     <button onClick={() => onAbsent(s)} className="font-semibold text-destructive underline decoration-dotted">{s.classesAbsent}</button>

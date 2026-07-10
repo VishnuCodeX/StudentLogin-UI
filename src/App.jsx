@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import Toaster from "@/components/Toaster";
 import ConfirmHost from "@/components/ConfirmHost";
+import SessionExpiredModal from "@/components/SessionExpiredModal";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Attendance from "@/pages/Attendance";
@@ -37,6 +38,7 @@ export default function App() {
     <BrowserRouter basename="/CarmelNexus">
       <Toaster />
       <ConfirmHost />
+      <SessionExpiredModal />
       {/* Portal target for modals — sits at the app root so `position: fixed`
           isn't trapped by the page's framer-motion transform. */}
       <div id="modal-root" />

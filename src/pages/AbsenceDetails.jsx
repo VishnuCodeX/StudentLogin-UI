@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, CalendarX, CheckCircle2 } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
@@ -15,6 +15,7 @@ export default function AbsenceDetails() {
   const [rows, setRows] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [semFilter, setSemFilter] = useState("ALL"); // a semester number, or "ALL"
 
   function load() {
     setLoading(true);
@@ -26,9 +27,24 @@ export default function AbsenceDetails() {
   }
   useEffect(load, []);
 
+  // Absences span every semester a student has had classes in, so each row is tagged with a
+  // semester (see backend findAbsenceDetails) and filterable here. These hooks must run on
+  // every render (Rules of Hooks) — kept above the loading/error branches below, with
+  // data-safe fallbacks so they're harmless before the fetch resolves.
+  const allRows = rows || [];
+  const semesters = useMemo(
+    () => [...new Set(allRows.map((r) => r.semester).filter((n) => n != null))].sort((a, b) => a - b),
+    [allRows]
+  );
+  const shownRows = useMemo(() => {
+    if (semFilter === "ALL") return allRows;
+    return allRows.filter((r) => r.semester === semFilter);
+  }, [allRows, semFilter]);
+  const chip = (on) => `rounded-full px-4 py-1.5 text-sm font-semibold transition ${on ? "bg-joy text-white shadow-card" : "bg-muted text-muted-foreground hover:bg-muted/70"}`;
+
   // group by date
   const byDate = {};
-  (rows || []).forEach((r) => (byDate[r.date] = byDate[r.date] || []).push(r));
+  shownRows.forEach((r) => (byDate[r.date] = byDate[r.date] || []).push(r));
 
   return (
     <div className="space-y-6">
@@ -40,6 +56,16 @@ export default function AbsenceDetails() {
         <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /> Refresh</Button>
       </div>
 
+      {!loading && !error && semesters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Semester</span>
+          {semesters.map((n) => (
+            <button key={n} onClick={() => setSemFilter(n)} className={chip(semFilter === n)}>Sem {n}</button>
+          ))}
+          <button onClick={() => setSemFilter("ALL")} className={chip(semFilter === "ALL")}>All</button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex h-48 items-center justify-center text-muted-foreground">
           <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
@@ -49,7 +75,7 @@ export default function AbsenceDetails() {
           <AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p>
           <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
-      ) : (rows || []).length === 0 ? (
+      ) : allRows.length === 0 ? (
         <Card><CardContent className="flex flex-col items-center gap-3 py-16 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20">
             <CheckCircle2 className="h-7 w-7" />
@@ -57,6 +83,8 @@ export default function AbsenceDetails() {
           <p className="font-display text-lg font-semibold">Perfect attendance! 🎉</p>
           <p className="max-w-sm text-sm text-muted-foreground">You have no recorded absences. Keep it up!</p>
         </CardContent></Card>
+      ) : shownRows.length === 0 ? (
+        <Card><CardContent className="py-14 text-center text-muted-foreground">No absences in this semester.</CardContent></Card>
       ) : (
         <div className="space-y-4">
           {Object.entries(byDate).map(([date, items]) => (

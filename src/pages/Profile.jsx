@@ -76,8 +76,23 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [avatar, setAvatarState] = useState(getAvatar());
+  const [isPortalUpload, setIsPortalUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef();
+
+  // The source of truth for "is there a removable photo" lives on the server (a photo the
+  // student uploaded through the portal vs. the fixed admission photo). Fetch it on mount
+  // so the Remove button only appears for photos that removal can actually affect.
+  useEffect(() => {
+    unwrap(api.get("/profile/photo/info", { skipErrorToast: true }))
+      .then((info) => {
+        if (!info) return;
+        setIsPortalUpload(Boolean(info.portalUpload));
+        persistAvatar(info.dataUrl || null);
+        setAvatarState(info.dataUrl || null);
+      })
+      .catch(() => {});
+  }, []);
 
   async function onPickPhoto(e) {
     const file = e.target.files?.[0];
@@ -100,6 +115,7 @@ export default function Profile() {
       const shown = dataUrl || (await resizeImage(file));
       persistAvatar(shown);
       setAvatarState(shown);
+      setIsPortalUpload(true);
       toast.success("Profile picture updated.");
     } catch (err) {
       toast.error(err?.response?.data?.message || "Could not upload that image.");
@@ -108,10 +124,22 @@ export default function Profile() {
     }
   }
 
-  function removePhoto() {
-    persistAvatar(null);
-    setAvatarState(null);
-    toast.info("Profile picture removed.");
+  // Actually deactivates the uploaded photo server-side (student_upload_photo.is_active = 0) —
+  // previously this only cleared the browser's local cache, so the exact photo the student
+  // just removed would reappear on the next login/refresh once AppLayout re-fetched it.
+  async function removePhoto() {
+    setUploading(true);
+    try {
+      const info = await unwrap(api.delete("/profile/photo", { skipErrorToast: true }));
+      setIsPortalUpload(Boolean(info?.portalUpload));
+      persistAvatar(info?.dataUrl || null);
+      setAvatarState(info?.dataUrl || null);
+      toast.info("Profile picture removed.");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Could not remove the photo.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function load() {
@@ -231,8 +259,8 @@ export default function Profile() {
               <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
                 <Camera className="h-4 w-4" /> {avatar ? "Change photo" : "Add photo"}
               </Button>
-              {avatar && (
-                <Button variant="ghost" size="sm" onClick={removePhoto} className="text-destructive hover:bg-destructive/10">
+              {avatar && isPortalUpload && (
+                <Button variant="ghost" size="sm" onClick={removePhoto} disabled={uploading} className="text-destructive hover:bg-destructive/10">
                   <Trash2 className="h-4 w-4" /> Remove
                 </Button>
               )}

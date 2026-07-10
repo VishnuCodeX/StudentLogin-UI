@@ -5,6 +5,7 @@ import api, { unwrap } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import AbsenceModal from "@/components/AbsenceModal";
+import PresentModal from "@/components/PresentModal";
 
 const pctTone = (p) => (p < 75 ? "text-[#c5552f]" : p < 85 ? "text-[#a87c12]" : "text-[#3f7a4b]");
 
@@ -16,6 +17,7 @@ export default function PreviousAttendance() {
   const [loadingRows, setLoadingRows] = useState(false);
   const [error, setError] = useState("");
   const [popup, setPopup] = useState(null);
+  const [presentPopup, setPresentPopup] = useState(null);
 
   function loadClasses() {
     setLoading(true);
@@ -114,7 +116,13 @@ export default function PreviousAttendance() {
                           </td>
                           <td className="px-3 py-3 text-muted-foreground">{r.attendanceType || "—"}</td>
                           <td className="px-3 py-3 text-center tabular-nums">{r.conducted}</td>
-                          <td className="px-3 py-3 text-center tabular-nums text-[#3f7a4b]">{r.present}</td>
+                          <td className="px-3 py-3 text-center">
+                            {r.present > 0 && r.subjectId ? (
+                              <button onClick={() => setPresentPopup(r)} className="font-bold text-[#3f7a4b] underline decoration-dotted underline-offset-2 hover:opacity-80 tabular-nums">{r.present}</button>
+                            ) : (
+                              <span className="tabular-nums text-[#3f7a4b]">{r.present}</span>
+                            )}
+                          </td>
                           <td className="px-3 py-3 text-center">
                             {r.absent > 0 && r.subjectId ? (
                               <button onClick={() => setPopup(r)} className="font-bold text-[#c5552f] underline decoration-dotted underline-offset-2 hover:opacity-80 tabular-nums">{r.absent}</button>
@@ -143,13 +151,14 @@ export default function PreviousAttendance() {
 
           {(rows || []).length > 0 && (
             <p className="rounded-2xl border border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
-              Click an <b>Absent</b> count to see the dates, periods &amp; teacher for that subject.
+              Click a <b>Present</b> or <b>Absent</b> count to see the dates, periods &amp; teacher for that subject.
             </p>
           )}
         </>
       )}
 
       {popup && <AbsenceModal subject={{ subjectId: popup.subjectId, subjectName: popup.subjectName, subjectCode: popup.subjectCode }} onClose={() => setPopup(null)} />}
+      {presentPopup && <PresentModal subject={{ subjectId: presentPopup.subjectId, subjectName: presentPopup.subjectName, subjectCode: presentPopup.subjectCode }} onClose={() => setPresentPopup(null)} />}
     </div>
   );
 }

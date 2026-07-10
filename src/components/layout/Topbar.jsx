@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Menu, Bell, Search, LogOut, User, Loader2, Megaphone, CheckCircle2 } from "@/lib/icons";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
 import { getStudent, clearSession, getAvatar } from "@/lib/auth";
 import { confirm } from "@/lib/confirm";
 import api, { unwrap } from "@/lib/api";
@@ -73,6 +74,8 @@ export default function Topbar({ onMenu }) {
       </div>
 
       <div className="ml-auto flex items-center gap-1.5">
+        <ThemeSwitcher />
+
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Notifications"
@@ -112,7 +115,7 @@ export default function Topbar({ onMenu }) {
                       <span className="text-sm leading-snug">{n.description}</span>
                     </>
                   );
-                  return (n.is_link || n.isLink) && n.link ? (
+                  return n.linkResource && n.link ? (
                     <a
                       key={n.id} href={n.link} target="_blank" rel="noreferrer"
                       className="flex items-start gap-3 rounded-2xl p-3 transition-colors hover:bg-muted"

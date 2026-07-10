@@ -48,16 +48,19 @@ export default function AppLayout() {
             </AnimatePresence>
           </div>
         </main>
-        {/* Footer bar — matches the sidebar's "Powered By MCC(IT)" band. */}
+        {/* Footer bar — matches the sidebar's "Powered By MCC(IT)" band. Stacks into a
+            centered column on mobile (the 3-up grid was cramming "All Rights Reserved"
+            into a wrap that collided with the Version line); reverts to the 3-column
+            row from sm: up, where there's room. */}
         <footer className="bg-joy px-4 py-3 text-white/85 lg:px-8">
-          <div className="mx-auto grid w-full max-w-6xl grid-cols-3 items-center gap-3 text-[12px] font-semibold">
-            <span className="justify-self-start">
+          <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-1.5 text-center text-[12px] font-semibold sm:grid sm:grid-cols-3 sm:gap-3 sm:text-left">
+            <span className="sm:justify-self-start">
               <CarmelNexusBrand size={16} textSize={12} light />
             </span>
-            <span className="justify-self-center text-center text-white/80">
+            <span className="text-white/80 sm:justify-self-center sm:text-center">
               © {new Date().getFullYear()} MCC. All Rights Reserved.
             </span>
-            <span className="flex items-center gap-1.5 justify-self-end tracking-wide">
+            <span className="flex items-center gap-1.5 tracking-wide sm:justify-self-end">
               <ArrowUp className="h-4 w-4 text-emerald-400" />
               Version <span className="font-bold text-white">v1.0.1</span>
             </span>

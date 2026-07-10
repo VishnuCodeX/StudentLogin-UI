@@ -44,6 +44,98 @@
     --ring: 31 31% 40%;
 
     --radius: 1.25rem;
+
+    /* the app's main brand gradient (buttons, headers, avatars) — themed below */
+    --grad-joy: linear-gradient(95deg, #5c4632 0%, #8a6d4a 60%, #a4855c 100%);
+  }
+
+  /* ── Colour themes — switched via <html data-theme="…">, see lib/theme.js ──
+     Carmel (above, no attribute) is the default/current look. Each theme only
+     overrides the "brand" variables (background/card/primary/accent family +
+     the bg-joy gradient); status colors (success/warning/destructive) and
+     --radius stay constant across themes for a consistent, accessible feel. */
+  [data-theme="ocean"] {
+    --background: 200 45% 95%;
+    --foreground: 205 35% 20%;
+    --card: 195 55% 98%;
+    --card-foreground: 205 35% 20%;
+    --popover: 195 55% 98%;
+    --popover-foreground: 205 35% 20%;
+    --primary: 199 55% 35%;
+    --primary-foreground: 195 60% 97%;
+    --secondary: 199 40% 88%;
+    --secondary-foreground: 202 32% 28%;
+    --muted: 199 35% 91%;
+    --muted-foreground: 202 18% 42%;
+    --accent: 199 40% 87%;
+    --accent-foreground: 202 30% 30%;
+    --border: 199 30% 84%;
+    --input: 199 28% 81%;
+    --ring: 199 55% 35%;
+    --grad-joy: linear-gradient(95deg, #1f4f63 0%, #2f7a94 60%, #5aa8bd 100%);
+  }
+
+  [data-theme="forest"] {
+    --background: 100 30% 95%;
+    --foreground: 130 25% 18%;
+    --card: 100 40% 98%;
+    --card-foreground: 130 25% 18%;
+    --popover: 100 40% 98%;
+    --popover-foreground: 130 25% 18%;
+    --primary: 140 35% 30%;
+    --primary-foreground: 100 40% 97%;
+    --secondary: 110 30% 88%;
+    --secondary-foreground: 130 26% 26%;
+    --muted: 110 28% 91%;
+    --muted-foreground: 130 16% 40%;
+    --accent: 110 30% 87%;
+    --accent-foreground: 130 24% 28%;
+    --border: 110 25% 84%;
+    --input: 110 24% 81%;
+    --ring: 140 35% 30%;
+    --grad-joy: linear-gradient(95deg, #2d4a30 0%, #4a7a4e 60%, #7ea87f 100%);
+  }
+
+  [data-theme="orchid"] {
+    --background: 300 35% 96%;
+    --foreground: 300 25% 20%;
+    --card: 300 45% 98%;
+    --card-foreground: 300 25% 20%;
+    --popover: 300 45% 98%;
+    --popover-foreground: 300 25% 20%;
+    --primary: 300 35% 35%;
+    --primary-foreground: 300 45% 97%;
+    --secondary: 300 30% 89%;
+    --secondary-foreground: 300 26% 28%;
+    --muted: 300 26% 92%;
+    --muted-foreground: 300 14% 44%;
+    --accent: 300 30% 88%;
+    --accent-foreground: 300 24% 30%;
+    --border: 300 25% 85%;
+    --input: 300 24% 82%;
+    --ring: 300 35% 35%;
+    --grad-joy: linear-gradient(95deg, #4a2d4a 0%, #7a4a7a 60%, #a879a8 100%);
+  }
+
+  [data-theme="sunset"] {
+    --background: 24 70% 96%;
+    --foreground: 18 40% 20%;
+    --card: 24 75% 98%;
+    --card-foreground: 18 40% 20%;
+    --popover: 24 75% 98%;
+    --popover-foreground: 18 40% 20%;
+    --primary: 16 65% 45%;
+    --primary-foreground: 24 70% 97%;
+    --secondary: 24 55% 89%;
+    --secondary-foreground: 18 40% 28%;
+    --muted: 24 45% 92%;
+    --muted-foreground: 20 22% 44%;
+    --accent: 24 50% 88%;
+    --accent-foreground: 18 36% 30%;
+    --border: 24 40% 84%;
+    --input: 24 38% 81%;
+    --ring: 16 65% 45%;
+    --grad-joy: linear-gradient(95deg, #7a3a1f 0%, #c1652f 60%, #e0985e 100%);
   }
 
   .dark {
@@ -101,7 +193,7 @@
 @layer utilities {
   /* Warm beige gradient presets */
   .bg-joy {
-    background-image: linear-gradient(95deg, #5c4632 0%, #8a6d4a 60%, #a4855c 100%);
+    background-image: var(--grad-joy);
   }
   .bg-sky-joy {
     background-image: linear-gradient(135deg, #6b4f3a 0%, #a4855c 100%);

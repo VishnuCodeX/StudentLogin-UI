@@ -76,6 +76,12 @@ import {
   UploadSimple as PhUpload,
   CloudArrowUp as PhUploadCloud,
   HandWaving as PhHandWaving,
+  LockKey as PhLockKey,
+  SignIn as PhSignIn,
+  Palette as PhPalette,
+  Copy as PhCopy,
+  ArrowsOut as PhArrowsOut,
+  ArrowsIn as PhArrowsIn,
 } from "@phosphor-icons/react";
 
 const DUO = "duotone";
@@ -167,3 +173,9 @@ export const TrendingUp = make(PhTrendUp, DUO);
 export const Upload = make(PhUpload, DUO);
 export const UploadCloud = make(PhUploadCloud, DUO);
 export const HandWaving = make(PhHandWaving, DUO);
+export const Lock = make(PhLockKey, DUO);
+export const LogIn = make(PhSignIn, BOLD);
+export const Palette = make(PhPalette, DUO);
+export const Copy = make(PhCopy, BOLD);
+export const Maximize = make(PhArrowsOut, BOLD);
+export const Minimize = make(PhArrowsIn, BOLD);

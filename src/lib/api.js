@@ -1,6 +1,7 @@
 import axios from "axios";
 import { getToken, clearSession } from "./auth";
 import { toast } from "./toast";
+import { notifySessionExpired } from "./sessionExpired";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5454/api",
@@ -14,13 +15,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Raw window.location redirects (outside React Router) must be prefixed with the app's base
-// path — import.meta.env.BASE_URL reflects vite.config.js's `base` ("/CarmelNexus/" in prod,
-// "/" in local dev), so this works in both without hardcoding the deployment path.
-const LOGIN_PATH = `${import.meta.env.BASE_URL}login`.replace(/\/{2,}/g, "/");
-
-// Global response handling: 401/403 → session expired + redirect; everything else
-// surfaces an error snackbar (unless the caller opts out with `skipErrorToast: true`).
+// Global response handling: 401/403 → clear the dead session and show the blocking
+// "session expired" dialog (SessionExpiredModal, mounted at the app root) so the
+// student gets a clear reason before being sent back to Login, instead of a silent
+// redirect. Everything else surfaces an error snackbar (unless the caller opts out
+// with `skipErrorToast: true`).
 api.interceptors.response.use(
   (res) => res,
   (error) => {
@@ -28,8 +27,7 @@ api.interceptors.response.use(
     if (status === 401 || status === 403) {
       clearSession();
       if (!window.location.pathname.endsWith("/login")) {
-        toast.info("Your session has expired. Please sign in again.");
-        window.location.href = LOGIN_PATH;
+        notifySessionExpired();
       }
       return Promise.reject(error);
     }

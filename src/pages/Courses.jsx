@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import PageTitle from "@/components/PageTitle";
 import {
   Loader2, AlertTriangle, RefreshCw, ArrowLeft, BookOpen, FileText, Megaphone,
   MessageCircle, Download, ExternalLink, CheckCircle2, Clock, GraduationCap, Pin, Plus, X, CalendarDays, Eye,
-  ClipboardCheck, ListChecks, Trophy, Repeat,
+  ClipboardCheck, ListChecks, Trophy, Repeat, Copy, Maximize, Minimize,
 } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
@@ -31,8 +31,56 @@ function Modal({ title, onClose, children }) {
   );
 }
 
-const TYPE_EMOJI = { pdf: "📄", ppt: "📊", pptx: "📊", doc: "📝", docx: "📝", xls: "📈", xlsx: "📈", zip: "🗂️" };
+const TYPE_EMOJI = {
+  pdf: "📄", ppt: "📊", pptx: "📊", doc: "📝", docx: "📝", xls: "📈", xlsx: "📈", zip: "🗂️",
+  mp4: "🎬", mov: "🎬", webm: "🎬", avi: "🎬", mkv: "🎬", m4v: "🎬",
+};
+// TYPE_EMOJI is keyed by filename extension for a precise icon (doc vs ppt vs xls). But
+// lms_file.file_type is a MIME string ("application/pdf"), so a raw fileType lookup always
+// misses — fall back to the broader kind (see classifyResource, defined below) when the
+// filename has no matching extension.
+const KIND_EMOJI = { pdf: "📄", image: "🖼️", video: "🎬", office: "📄", link: "🔗", youtube: "▶️", other: "📎" };
+function fileEmoji(item) {
+  return TYPE_EMOJI[resourceExt(item)] || KIND_EMOJI[classifyResource(item)] || "📎";
+}
 const fmtSize = (b) => (!b ? "" : b < 1024 ? `${b} B` : b < 1048576 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1)} MB`);
+async function copyLink(url) {
+  if (!url) { toast.warning("No URL to copy."); return; }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast.success("Link copied to clipboard.");
+  } catch {
+    toast.error("Could not copy the link.");
+  }
+}
+
+// Toggle real browser fullscreen (not just a bigger modal) on a given element, with the
+// vendor-prefixed fallbacks Safari/iOS still need. Tracks state via the fullscreenchange
+// event too, since the user can exit with Escape or the browser's own controls, not just
+// our button.
+function useFullscreen(ref) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement || document.webkitFullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    document.addEventListener("webkitfullscreenchange", onChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      document.removeEventListener("webkitfullscreenchange", onChange);
+    };
+  }, []);
+  function toggle() {
+    const el = ref.current;
+    if (!el) return;
+    const current = document.fullscreenElement || document.webkitFullscreenElement;
+    if (current) {
+      (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+    } else {
+      (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+    }
+  }
+  return { isFullscreen, toggle };
+}
 
 const TABS = [
   ["materials", "Materials", BookOpen],
@@ -113,7 +161,7 @@ export default function Courses() {
 
   async function downloadFile(kind, f) {
     const resType = kind === "assignment" ? "ASSIGNMENT" : "MATERIAL";
-    if (f.isLink && f.link) { trackView(resType, f.id, f.title); window.open(f.link, "_blank", "noopener,noreferrer"); return; }
+    if (f.linkResource && f.link) { trackView(resType, f.id, f.title); window.open(f.link, "_blank", "noopener,noreferrer"); return; }
     setBusyId(kind + f.id);
     try {
       const url = kind === "assignment" ? `/lms/assignment-download/${f.id}` : `/lms/download/${f.id}`;
@@ -265,7 +313,7 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
 
       {tab === "materials" && (
         <FileList items={materials} kind="material" busyId={busyId} downloadFile={downloadFile}
-          onView={(item) => setViewing({ item, kind: "material" })}
+          onView={(item) => openViewer(item, "material", setViewing)}
           empty="No study materials posted yet." />
       )}
 
@@ -277,7 +325,7 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
               return (
                 <Card key={a.id}><CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <span className="text-2xl">{TYPE_EMOJI[(a.fileType || "").toLowerCase()] || "📎"}</span>
+                    <span className="text-2xl">{fileEmoji(a)}</span>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold leading-tight">{a.title}</p>
                       <p className="text-xs text-muted-foreground">{a.fileType?.toUpperCase()}{a.dueDate ? ` · Due ${a.dueDate}` : ""}</p>
@@ -293,14 +341,14 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
                       {s?.feedback && <p className="mt-1.5 rounded-lg bg-muted/50 p-2 text-xs"><b>Feedback:</b> {s.feedback}</p>}
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
-                      <Button variant="ghost" size="icon" title="View" onClick={() => setViewing({ item: a, kind: "assignment" })}
+                      <Button variant="ghost" size="icon" title="View" onClick={() => openViewer(a, "assignment", setViewing)}
                         className="h-9 w-9 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" title={a.isLink ? "Open" : "Download"} disabled={busyId === "assignment" + a.id}
+                      <Button variant="ghost" size="icon" title={a.linkResource ? "Open" : "Download"} disabled={busyId === "assignment" + a.id}
                         onClick={() => downloadFile("assignment", a)}
                         className="h-9 w-9 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
-                        {busyId === "assignment" + a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : a.isLink ? <ExternalLink className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+                        {busyId === "assignment" + a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : a.linkResource ? <ExternalLink className="h-4 w-4" /> : <Download className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
@@ -500,33 +548,69 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
   );
 }
 
-// ── In-place viewer for a material/assignment. Renders PDF/images inline (auth'd blob),
-// embeds YouTube, iframes other links (with an open-in-new-tab fallback), and offers a
-// download for Word/Office/other. Logs a VIEW event + the dwell TIME to learning analytics. ──
+// ── In-place viewer for a material/assignment. Renders PDF/images/video inline
+// (auth'd blob), embeds YouTube, and offers a download for Word/Office/video/other.
+// Plain URL materials never reach this viewer — openViewer() below sends those
+// straight to a new tab instead, since embedding arbitrary external sites in an
+// iframe silently breaks whenever the site sends X-Frame-Options/CSP. Logs a VIEW
+// event + the dwell TIME to learning analytics. ──
+const VIDEO_EXTS = ["mp4", "webm", "ogg", "ogv", "mov", "m4v", "avi", "mkv"];
 function ytId(url) {
   const m = String(url || "").match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/))([\w-]{11})/);
   return m ? m[1] : null;
 }
+// lms_file.file_type is stored as a full MIME string (e.g. "application/pdf"), not a bare
+// extension — this is the primary signal per is_link=0. Returns null when it's missing or
+// unrecognized, so the caller can fall back to sniffing the filename extension instead.
+function mimeToKind(mime) {
+  const m = String(mime || "").toLowerCase().trim();
+  if (!m) return null;
+  if (m === "application/pdf") return "pdf";
+  if (m.startsWith("image/")) return "image";
+  if (m.startsWith("video/")) return "video";
+  if (m.includes("word") || m.includes("excel") || m.includes("powerpoint") || m.includes("spreadsheet") || m.includes("presentation")) return "office";
+  return null;
+}
 function resourceExt(item) {
   const s = String(item.filename || item.fileName || item.title || "").toLowerCase();
   const m = s.match(/\.([a-z0-9]+)(?:\?.*)?$/);
-  return (m ? m[1] : String(item.fileType || "").toLowerCase());
+  return m ? m[1] : "";
 }
+// is_link=1 → "link"/"youtube" (the link field is the whole resource, no file involved).
+// is_link=0 → classify by file_type (the DB's MIME string) first; if that's missing or
+// unrecognized, fall back to the filename extension. Either way the actual bytes are always
+// fetched by id from the backend, which resolves the on-disk file via lms_file.filename.
 function classifyResource(item) {
-  if (item.isLink && item.link) return ytId(item.link) ? "youtube" : "link";
+  if (item.linkResource && item.link) return ytId(item.link) ? "youtube" : "link";
+  const byMime = mimeToKind(item.fileType);
+  if (byMime) return byMime;
   const e = resourceExt(item);
   if (e === "pdf") return "pdf";
   if (["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(e)) return "image";
+  if (VIDEO_EXTS.includes(e)) return "video";
   if (["doc", "docx", "ppt", "pptx", "xls", "xlsx"].includes(e)) return "office";
   return "other";
+}
+// Materials/assignments open in the in-place viewer, except plain URL links (not
+// YouTube) — those go straight to a new tab, matching how the row's own
+// Open/Download button already treats them.
+function openViewer(item, kind, setViewing) {
+  if (item.linkResource && item.link && !ytId(item.link)) {
+    trackView(kind === "assignment" ? "ASSIGNMENT" : "MATERIAL", item.id, item.title);
+    window.open(item.link, "_blank", "noopener,noreferrer");
+    return;
+  }
+  setViewing({ item, kind });
 }
 
 function ResourceViewer({ item, kind, onClose, downloadFile }) {
   const resType = kind === "assignment" ? "ASSIGNMENT" : "MATERIAL";
   const type = classifyResource(item);
   const [blobUrl, setBlobUrl] = useState(null);
-  const [loadingBlob, setLoadingBlob] = useState(type === "pdf" || type === "image");
+  const [loadingBlob, setLoadingBlob] = useState(type === "pdf" || type === "image" || type === "video");
   const [err, setErr] = useState("");
+  const panelRef = useRef(null);
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(panelRef);
 
   // log VIEW + accumulate dwell time (TIME on close)
   useEffect(() => {
@@ -536,9 +620,9 @@ function ResourceViewer({ item, kind, onClose, downloadFile }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id]);
 
-  // fetch the file (authenticated) for inline PDF / image preview
+  // fetch the file (authenticated) for inline PDF / image / video preview
   useEffect(() => {
-    if (type !== "pdf" && type !== "image") return undefined;
+    if (type !== "pdf" && type !== "image" && type !== "video") return undefined;
     let cancelled = false; let url = null;
     setLoadingBlob(true); setErr("");
     const endpoint = kind === "assignment" ? `/lms/assignment-download/${item.id}` : `/lms/download/${item.id}`;
@@ -559,7 +643,8 @@ function ResourceViewer({ item, kind, onClose, downloadFile }) {
   return createPortal(
     <div className="fixed inset-0 z-[95] flex items-center justify-center p-3 sm:p-6">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative flex h-[86vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-pop">
+      <div ref={panelRef}
+        className={`relative flex h-[86vh] w-full max-w-5xl flex-col overflow-hidden border border-border bg-card shadow-pop ${isFullscreen ? "rounded-none" : "rounded-3xl"}`}>
         <div className="flex items-center justify-between gap-3 bg-joy px-5 py-3 text-white">
           <div className="min-w-0">
             <p className="truncate font-display text-base font-bold">{item.title || item.filename}</p>
@@ -569,11 +654,15 @@ function ResourceViewer({ item, kind, onClose, downloadFile }) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {(type === "link" || type === "youtube") && item.link && (
+            <Button variant="ghost" size="icon" title={isFullscreen ? "Exit full screen" : "View full screen"} onClick={toggleFullscreen}
+              className="h-8 w-8 rounded-lg text-white/85 hover:bg-white/15 hover:text-white">
+              {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            </Button>
+            {type === "youtube" && item.link && (
               <a href={item.link} target="_blank" rel="noopener noreferrer"
                 className="rounded-lg bg-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/25">Open in new tab</a>
             )}
-            {(type === "office" || type === "other") && (
+            {(type === "office" || type === "other" || type === "video") && (
               <button onClick={() => downloadFile(kind, item)}
                 className="rounded-lg bg-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/25">Download</button>
             )}
@@ -586,17 +675,18 @@ function ResourceViewer({ item, kind, onClose, downloadFile }) {
           ) : err ? (
             <div className="flex h-full items-center justify-center text-white/80">{err}</div>
           ) : type === "youtube" && yt ? (
-            <iframe title={item.title} className="h-full w-full" src={`https://www.youtube.com/embed/${yt}`}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+            <iframe title={item.title} className="h-full w-full" src={`https://www.youtube.com/embed/${yt}?playsinline=1&rel=0`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen />
           ) : type === "pdf" && blobUrl ? (
             <iframe title={item.title} className="h-full w-full" src={blobUrl} />
           ) : type === "image" && blobUrl ? (
             <div className="flex h-full items-center justify-center overflow-auto p-4">
               <img src={blobUrl} alt={item.title} className="max-h-full max-w-full object-contain" />
             </div>
-          ) : type === "link" ? (
-            <iframe title={item.title} className="h-full w-full bg-white" src={item.link}
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms" />
+          ) : type === "video" && blobUrl ? (
+            <div className="flex h-full items-center justify-center p-4">
+              <video src={blobUrl} controls autoPlay className="max-h-full max-w-full rounded-xl" />
+            </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-white/80">
               <FileText className="h-10 w-10" />
@@ -676,10 +766,14 @@ function FileList({ items, kind, busyId, downloadFile, onView, empty }) {
     <div className="space-y-2">
       {items.map((f) => (
         <div key={f.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 transition-colors hover:bg-muted">
-          <span className="text-2xl">{TYPE_EMOJI[(f.fileType || "").toLowerCase()] || (f.isLink ? "🔗" : "📎")}</span>
+          <span className="text-2xl">{fileEmoji(f)}</span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{f.title || f.filename}</p>
-            <p className="text-xs text-muted-foreground">{f.fileType?.toUpperCase()}{fmtSize(f.fileSize) ? ` · ${fmtSize(f.fileSize)}` : ""}{f.startDate ? ` · ${f.startDate}` : ""}</p>
+            {f.linkResource && f.link ? (
+              <p className="truncate text-xs text-primary">{f.link}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">{f.fileType?.toUpperCase()}{fmtSize(f.fileSize) ? ` · ${fmtSize(f.fileSize)}` : ""}{f.startDate ? ` · ${f.startDate}` : ""}</p>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             {onView && (
@@ -688,11 +782,18 @@ function FileList({ items, kind, busyId, downloadFile, onView, empty }) {
                 <Eye className="h-4 w-4" />
               </Button>
             )}
-            <Button variant="ghost" size="icon" title={f.isLink ? "Open link" : "Download"} disabled={busyId === kind + f.id}
-              onClick={() => downloadFile(kind, f)}
-              className="h-9 w-9 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
-              {busyId === kind + f.id ? <Loader2 className="h-4 w-4 animate-spin" /> : f.isLink ? <ExternalLink className="h-4 w-4" /> : <Download className="h-4 w-4" />}
-            </Button>
+            {f.linkResource ? (
+              <Button variant="ghost" size="icon" title="Copy link" onClick={() => copyLink(f.link)}
+                className="h-9 w-9 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
+                <Copy className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" title="Download" disabled={busyId === kind + f.id}
+                onClick={() => downloadFile(kind, f)}
+                className="h-9 w-9 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
+                {busyId === kind + f.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              </Button>
+            )}
           </div>
         </div>
       ))}
