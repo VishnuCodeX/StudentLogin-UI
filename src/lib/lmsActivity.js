@@ -15,6 +15,17 @@ let flushTimer = null;
 // who + which subject context the events belong to (set once you enter a subject)
 let ctx = { subjectId: null, batchYear: null };
 
+// The backend parses eventDate with SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss") — no timezone
+// in the pattern, so it's read back using the server's local zone (IST). Date.toISOString()
+// is always UTC, so sending that (even with the "Z" sliced off) silently shifts every event
+// ~5.5h behind the real local time it happened. Build the string from the browser's own local
+// getters instead, so the wall-clock moment the student actually acted at is what's recorded.
+function localTimestamp() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 export function setActivityContext({ subjectId, batchYear }) {
   if (subjectId != null) ctx.subjectId = subjectId;
   if (batchYear != null) ctx.batchYear = batchYear;
@@ -37,7 +48,7 @@ function enqueue(ev) {
     subjectId: ctx.subjectId,
     batchYear: ctx.batchYear,
     ...id,
-    eventDate: new Date().toISOString().slice(0, 19),
+    eventDate: localTimestamp(),
     ...ev,
   });
   scheduleFlush();
