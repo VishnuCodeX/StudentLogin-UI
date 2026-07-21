@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import PageTitle from "@/components/PageTitle";
 import { Link } from "react-router-dom";
-import { Loader2, AlertTriangle, RefreshCw, ChevronRight, Repeat, Home, FileText, GraduationCap, Sparkles, Wallet } from "@/lib/icons";
+import { Loader2, AlertTriangle, RefreshCw, ChevronRight, Repeat, Home, FileText, GraduationCap, Sparkles, Wallet, Receipt } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ const ICONS = {
   idc: GraduationCap,
   "misc-payments": Wallet,
   "extra-course": Sparkles,
+  "attendance-shortage-fine": AlertTriangle,
+  "cee-receipts": Receipt,
 };
 
 export default function OnlineApplications() {

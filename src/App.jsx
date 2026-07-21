@@ -16,6 +16,8 @@ import HallTickets from "@/pages/HallTickets";
 import OnlineApplications from "@/pages/OnlineApplications";
 import MiscPayments from "@/pages/MiscPayments";
 import Cee from "@/pages/Cee";
+import CeeReceipts from "@/pages/CeeReceipts";
+import AttendanceShortageFine from "@/pages/AttendanceShortageFine";
 import Certificates from "@/pages/Certificates";
 import Supplementary from "@/pages/Supplementary";
 import HostelLeave from "@/pages/HostelLeave";
@@ -27,6 +29,7 @@ import CocurricularLeave from "@/pages/CocurricularLeave";
 import PreviousAttendance from "@/pages/PreviousAttendance";
 import Uploads from "@/pages/Uploads";
 import Placement from "@/pages/Placement";
+import PlacementInternational from "@/pages/PlacementInternational";
 import Eduvistas from "@/pages/Eduvistas";
 import ReIssueIdCard from "@/pages/ReIssueIdCard";
 import Isrc from "@/pages/Isrc";
@@ -75,6 +78,8 @@ export default function App() {
           <Route path="/apply/supplementary" element={<Supplementary />} />
           <Route path="/apply/hostel-leave" element={<HostelLeave />} />
           <Route path="/apply/cee" element={<Cee />} />
+          <Route path="/apply/cee-receipts" element={<CeeReceipts />} />
+          <Route path="/apply/attendance-shortage-fine" element={<AttendanceShortageFine />} />
           <Route path="/apply/certificates" element={<Certificates />} />
           <Route path="/apply/idc" element={<Idc />} />
           <Route path="/apply/misc-payments" element={<MiscPayments />} />
@@ -95,6 +100,7 @@ export default function App() {
 
           {/* Placement */}
           <Route path="/placement/registration" element={<Placement />} />
+          <Route path="/placement/international" element={<PlacementInternational />} />
           <Route path="/placement/eduvistas" element={<Eduvistas />} />
           <Route path="/placement/drives" element={<Placement />} />
 

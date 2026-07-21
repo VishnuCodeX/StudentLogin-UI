@@ -71,7 +71,9 @@ export const NAV_SECTIONS = [
     items: [
       { to: "/apply/supplementary", label: "Supplementary Application" },
       { to: "/apply/certificates", label: "Apply for Certificates" },
-      { to: "/apply/cee", label: "CEE Application" },
+      { to: "/apply/cee", label: "CEE/SEC Application" },
+      { to: "/apply/cee-receipts", label: "CEE Receipts" },
+      { to: "/apply/attendance-shortage-fine", label: "Attendance Shortage Fine" },
       { to: "/apply/idc", label: "Inter/Multi-disciplinary Course" },
       { to: "/apply/misc-payments", label: "Miscellaneous Payments" },
     ],
@@ -106,6 +108,7 @@ export const NAV_SECTIONS = [
     icon: Briefcase,
     items: [
       { to: "/placement/registration", label: "Registration" },
+      { to: "/placement/international", label: "International/Internship" },
       { to: "/placement/eduvistas", label: "Eduvista's" },
     ],
   },

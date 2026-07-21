@@ -3,8 +3,13 @@ import { getToken, clearSession } from "./auth";
 import { toast } from "./toast";
 import { notifySessionExpired } from "./sessionExpired";
 
+// Default to the same host the page was loaded from (not a hardcoded "localhost") so this
+// works unchanged whether opened as http://localhost:3000 or http://<lan-ip>:3000 — "localhost"
+// in another machine's browser would otherwise resolve to that machine, not this one.
+const DEFAULT_API_BASE_URL = `http://${window.location.hostname}:5454/api`;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5454/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
 

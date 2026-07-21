@@ -249,7 +249,13 @@ export default function Placement() {
     setPaying(true);
     try {
       const res = await unwrap(api.post("/placement/registration/pay", {}, { skipErrorToast: true }));
+      console.group("%c[Payment] Placement Registration — pay response", "color:#8a6d4a;font-weight:bold");
+      console.log(res);
+      console.groupEnd();
       if (res?.gatewayConfigured && res.forwardUrl && res.encRequest) {
+        console.log("[Payment] Submitting to Kotak:", {
+          forwardUrl: res.forwardUrl, accessCode: res.accessCode, orderId: res.orderId, amount: res.amount,
+        });
         const gForm = document.createElement("form");
         gForm.method = "POST";
         gForm.action = res.forwardUrl;
@@ -263,9 +269,11 @@ export default function Placement() {
         document.body.appendChild(gForm);
         gForm.submit();
       } else {
+        console.warn("[Payment] Gateway not configured — nothing submitted.", res?.message);
         toast.info(res?.message || "Online payment gateway is not enabled yet.");
       }
     } catch (err) {
+      console.error("[Payment] pay request failed:", err);
       toast.error(err?.response?.data?.message || "Could not start payment. Please try again.");
     } finally {
       setPaying(false);

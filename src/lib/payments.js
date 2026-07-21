@@ -4,11 +4,23 @@
 import { toast } from "@/lib/toast";
 
 export function goToGateway(res) {
+  console.group("%c[Payment] goToGateway", "color:#8a6d4a;font-weight:bold");
+  console.log("gateway response:", res);
+
   if (!res || !res.gatewayConfigured) {
+    console.warn("Gateway not configured — nothing to submit.", res?.message);
+    console.groupEnd();
     toast.info(res?.message || "Online payment gateway is not enabled yet.");
     return false;
   }
-  if ((res.method || "GET").toUpperCase() === "POST") {
+
+  const method = (res.method || "GET").toUpperCase();
+  console.log("gateway:", res.gateway, "| method:", method, "| url:", res.url);
+  console.log("orderId:", res.orderId, "| amount:", res.amount);
+  if (res.fields) console.log("form fields:", res.fields);
+  console.groupEnd();
+
+  if (method === "POST") {
     const form = document.createElement("form");
     form.method = "POST";
     form.action = res.url;

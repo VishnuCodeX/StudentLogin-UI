@@ -82,6 +82,7 @@ import {
   Copy as PhCopy,
   ArrowsOut as PhArrowsOut,
   ArrowsIn as PhArrowsIn,
+  Globe as PhGlobe,
 } from "@phosphor-icons/react";
 
 const DUO = "duotone";
@@ -179,3 +180,4 @@ export const Palette = make(PhPalette, DUO);
 export const Copy = make(PhCopy, BOLD);
 export const Maximize = make(PhArrowsOut, BOLD);
 export const Minimize = make(PhArrowsIn, BOLD);
+export const Globe = make(PhGlobe, DUO);

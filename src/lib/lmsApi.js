@@ -9,7 +9,7 @@ import axios from "axios";
 const LMS_BASE =
   import.meta.env.VITE_LMS_API_BASE_URL?.trim() ||
   import.meta.env.VITE_API_BASE_URL ||
-  "http://localhost:5454/api";
+  `http://${window.location.hostname}:5454/api`;
 
 const STATIC_TOKEN = import.meta.env.VITE_LMS_API_TOKEN?.trim() || "";
 
