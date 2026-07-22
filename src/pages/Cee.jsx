@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 import { useEffect, useState } from "react";
 import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, Award, Users, CalendarClock, Receipt, BookOpen } from "@/lib/icons";
@@ -108,7 +110,8 @@ export default function Cee() {
                         <span className="flex items-center gap-1"><CalendarClock className="h-3.5 w-3.5" /> {c.startDate} – {c.endDate}</span>
                       )}
                     </div>
-                    <div className="mt-auto">
+                    <div className="mt-auto flex items-center justify-between gap-3">
+                      {c.amount != null && <span className="font-display text-lg font-bold">₹{c.amount}</span>}
                       <Button onClick={() => apply(c.id)} disabled={closed || busy === c.id} className="bg-joy text-white">
                         {busy === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Award className="h-4 w-4" />}
                         Apply

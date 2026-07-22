@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 // Colour theme selection — switched via <html data-theme="…">, see index.css for the
 // preset palette definitions. Dark mode was removed earlier (kept as a guard below);
 // this is a separate concept: a few preset palettes, plus a "Custom" picker that

@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 // Engagement event emitter for the ERP "Learning Analytics" dashboard (Integration
 // Guide §5). The portal EMITS; nothing is rendered back. Faithfully firing these is
 // what makes the teacher's analytics non-empty.

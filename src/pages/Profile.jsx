@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -43,6 +45,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+// Shown on-screen only as last-4 (e.g. "XXXX XXXX 1234") — the full number is still sent to the
+// edit <Input> below so the student can correct it, just never rendered as plain text.
+function maskAadhaar(v) {
+  const digits = String(v || "").replace(/\D/g, "");
+  if (digits.length < 4) return v || "-";
+  return `XXXX XXXX ${digits.slice(-4)}`;
+}
 
 const EDITABLE = [
   { key: "email", label: "Email", type: "email" },
@@ -321,7 +331,7 @@ export default function Profile() {
                     onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
                   />
                 ) : (
-                  <p className="font-medium">{data[f.key] || "-"}</p>
+                  <p className="font-medium">{f.key === "aadhaarNo" ? maskAadhaar(data[f.key]) : (data[f.key] || "-")}</p>
                 )}
               </div>
             ))}

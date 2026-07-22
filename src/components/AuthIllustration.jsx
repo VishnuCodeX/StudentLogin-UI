@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 // Friendly, flat education-themed illustration for the login panel.
 // Designed to pop on a amber→pink gradient (white cards + bright accents).
 export default function AuthIllustration({ className }) {

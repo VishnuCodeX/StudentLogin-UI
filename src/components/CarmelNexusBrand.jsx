@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 import { motion } from "framer-motion";
 
 const FONT = "'Marcellus', 'Playfair Display', Georgia, serif";

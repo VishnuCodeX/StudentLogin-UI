@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 import { motion } from "framer-motion";
 
 const EASE = [0.22, 1, 0.36, 1];

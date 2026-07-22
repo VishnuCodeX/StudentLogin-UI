@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 // "POWERED BY [MCC(IT)]" badge — a gray uppercase label next to a solid maroon pill.
 export default function PoweredByBadge({ className = "" }) {
   return (

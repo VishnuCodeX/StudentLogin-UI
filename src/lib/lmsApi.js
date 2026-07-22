@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 // LMS API client — talks to the Carmel Connect ERP LMS endpoints documented in the
 // "Student Portal — LMS Integration Guide" (v1.0). Kept separate from the portal's
 // own api.js so the host + token are independently configurable: point it at the ERP

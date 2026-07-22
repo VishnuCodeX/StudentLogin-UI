@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import Toaster from "@/components/Toaster";
@@ -38,7 +40,7 @@ import Placeholder from "@/pages/Placeholder";
 
 export default function App() {
   return (
-    <BrowserRouter basename="/CarmelNexus">
+    <BrowserRouter basename="/CarmelNexus" future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Toaster />
       <ConfirmHost />
       <SessionExpiredModal />

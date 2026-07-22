@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 // Stylish icon set — Phosphor icons re-exported under the names the app already
 // uses (formerly lucide-react). Decorative icons render as "duotone" for a premium
 // two-tone look; small UI-chrome icons render as crisp "bold". Swapping the import

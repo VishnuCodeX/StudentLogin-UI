@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 import { useEffect, useState } from "react";
 import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, Receipt, Download } from "@/lib/icons";
@@ -69,6 +71,7 @@ function PrintCeeReceipt({ d }) {
           <tr><td style={boxLabel}>Course Hours</td><td style={boxValueWide} colSpan={3}>{d.hours || "—"}</td></tr>
           <tr><td style={boxLabel}>Course Fee</td><td style={boxValueWide} colSpan={3}>{d.amount != null ? Number(d.amount).toFixed(2) : "—"}</td></tr>
           <tr><td style={boxLabel}>Fee Payment Date</td><td style={boxValueWide} colSpan={3}>{d.paidDate || "—"}</td></tr>
+          <tr><td style={boxLabel}>Payment Mode</td><td style={boxValueWide} colSpan={3}>Online</td></tr>
           <tr><td style={boxLabel}>Venue</td><td style={boxValueWide} colSpan={3}>{d.venue || "—"}</td></tr>
         </tbody>
       </table>
@@ -145,6 +148,7 @@ export default function CeeReceipts() {
                 {detail.venue && <p><span className="text-muted-foreground">Venue:</span> {detail.venue}</p>}
                 <p><span className="text-muted-foreground">Fee Paid:</span> <b>₹{detail.amount}</b></p>
                 <p><span className="text-muted-foreground">Payment Date:</span> {detail.paidDate}</p>
+                <p><span className="text-muted-foreground">Payment Mode:</span> Online</p>
               </div>
             </div>
             <Button variant="outline" onClick={printPage}><Download className="h-4 w-4" /> Print Receipt</Button>

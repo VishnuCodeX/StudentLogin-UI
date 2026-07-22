@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 // Acts on a GatewayRedirect from the backend: Kotak/CCAvenue → auto-submit a form POST to the
 // hosted payment page; UCO → a plain redirect. Returns false (with a toast) when the gateway
 // isn't configured yet so the caller can stop.

@@ -1,3 +1,5 @@
+// Developed By: Vishnukarthick K
+
 // Promise-based confirm dialog. Any code can `await confirm({...})` and get true/false.
 // The <ConfirmHost /> component registers the handler.
 let handler = null;
