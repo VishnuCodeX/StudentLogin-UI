@@ -268,15 +268,27 @@ export default function PlacementInternational() {
               <motion.button key={p.id} type="button" onClick={() => setRegType(p.id)}
                 whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                aria-pressed={regType === p.id}
                 className={`relative overflow-hidden rounded-2xl border-2 p-4 text-left transition-colors ${regType === p.id ? "border-transparent" : "border-border hover:border-primary/40"}`}>
                 <AnimatePresence>
                   {regType === p.id && (
                     <motion.div layoutId="package-selection-highlight"
-                      className="absolute inset-0 z-0 rounded-2xl bg-primary/5 ring-2 ring-primary"
+                      className="absolute inset-0 z-0 rounded-2xl bg-primary/10 ring-2 ring-primary"
                       transition={{ type: "spring", stiffness: 500, damping: 30 }} />
                   )}
                 </AnimatePresence>
-                <div className="relative z-10">
+                <AnimatePresence>
+                  {regType === p.id && (
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0.4 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.4 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 22 }}
+                      className="absolute right-3 top-3 z-20 grid h-6 w-6 place-items-center rounded-full bg-primary text-primary-foreground shadow-soft"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+                <div className="relative z-10 pr-10">
                   <p className="font-display text-base font-bold">{p.title}</p>
                   <p className="mt-1 font-display text-2xl font-extrabold text-primary">₹{p.price}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{p.note}</p>
