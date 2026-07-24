@@ -1,19 +1,23 @@
 // Developed By: Vishnukarthick K
 
-import { useEffect, useState } from "react";
-import { Outlet, Navigate, useLocation } from "react-router-dom";
+import { Suspense, useEffect, useState } from "react";
+import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
-import { isAuthenticated, setAvatar } from "@/lib/auth";
+import { isAuthenticated, setAvatar, clearSession } from "@/lib/auth";
+import { confirm } from "@/lib/confirm";
 import api, { unwrap } from "@/lib/api";
 import { pageVariants } from "@/components/motion";
 import { ArrowUp } from "@/lib/icons";
 import CarmelNexusBrand from "@/components/CarmelNexusBrand";
+import PageLoader from "@/components/PageLoader";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Load the real student photo from the DB once per session; only set it when one
   // exists so a manual upload (or initials fallback) isn't wiped for students whose
@@ -24,6 +28,36 @@ export default function AppLayout() {
       .then((photo) => { if (photo) setAvatar(photo); })
       .catch(() => {});
   }, []);
+
+  // Only the Dashboard (the landing page right after login) gets a Back-button guard — pressing
+  // Back from any other screen is normal in-app navigation and is left alone. From the Dashboard,
+  // Back would otherwise leave the portal entirely, so it's treated as a logout attempt instead:
+  // a guard history entry (pushed here) ensures the press fires popstate even if the Dashboard is
+  // the very first page after login, and confirming/declining is the same "Log out?" dialog the
+  // Sidebar's own Logout button uses.
+  useEffect(() => {
+    if (!isAuthenticated() || location.pathname !== "/dashboard") return;
+    window.history.pushState(null, "", window.location.pathname + window.location.search);
+
+    function onPopState() {
+      navigate("/dashboard", { replace: true });
+      confirm({
+        title: "Log out?",
+        message: "Are you sure you want to logout?",
+        confirmText: "Yes, Logout",
+        cancelText: "No, Stay here",
+        danger: true,
+      }).then((ok) => {
+        if (ok) {
+          clearSession();
+          navigate("/login", { replace: true });
+        }
+      });
+    }
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [location.pathname]);
 
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
@@ -45,7 +79,11 @@ export default function AppLayout() {
                 animate="animate"
                 exit="exit"
               >
-                <Outlet />
+                <ErrorBoundary>
+                  <Suspense fallback={<PageLoader />}>
+                    <Outlet />
+                  </Suspense>
+                </ErrorBoundary>
               </motion.div>
             </AnimatePresence>
           </div>

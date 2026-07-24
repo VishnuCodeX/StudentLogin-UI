@@ -1,13 +1,15 @@
 // Developed By: Vishnukarthick K
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, Briefcase, Save, Plus, X, Download, CheckCircle2, CreditCard } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SkeletonCard } from "@/components/ui/skeleton";
 
 const inputCls =
   "w-full rounded-xl border border-input bg-card px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring";
@@ -56,14 +58,29 @@ function PolicyModal({ onAccept, onClose, accepting }) {
 
   const body = (
     <div className="fixed inset-0 z-[95] flex items-center justify-center p-3 sm:p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-pop">
+      <motion.div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      />
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="placement-policy-title"
+        className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-pop"
+        initial={{ opacity: 0, scale: 0.92, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.92, y: 16 }}
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      >
         <div className="flex items-start justify-between gap-3 bg-joy px-5 py-4 text-white">
           <div>
-            <h3 className="font-display text-lg font-bold">Placement Policy</h3>
+            <h3 id="placement-policy-title" className="font-display text-lg font-bold">Placement Policy</h3>
             <p className="text-xs text-white/85">Read carefully and click Accept to continue.</p>
           </div>
-          <button onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white/85 hover:bg-white/15"><X className="h-4 w-4" /></button>
+          <motion.button onClick={onClose} aria-label="Close" whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white/85 hover:bg-white/15"><X className="h-4 w-4" /></motion.button>
         </div>
 
         <div className="overflow-y-auto px-5 py-4">
@@ -99,7 +116,7 @@ function PolicyModal({ onAccept, onClose, accepting }) {
 
           <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm font-medium text-[#7a1f1f]">
             <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#7a1f1f]" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-            I acknowledge that I have read, understood, agree and abide by the policies and procedures of the Placement Cell at Mount Carmel College.
+            I acknowledge that I have read, understood, agree and abide by the policies and procedures of the Placement Cell at Mount Carmel (Deemed to be University).
           </label>
         </div>
 
@@ -110,7 +127,7 @@ function PolicyModal({ onAccept, onClose, accepting }) {
             Accept
           </Button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
   return createPortal(body, document.getElementById("modal-root") || document.body);
@@ -170,27 +187,49 @@ function YesNo({ label, value, onChange }) {
 
 /* dynamic add/remove list (max 4) */
 function RepeatList({ label, addLabel, items, setItems, placeholder }) {
-  const add = () => items.length < 4 && setItems([...items, ""]);
+  const idSeed = useRef(0);
+  const [ids, setIds] = useState(() => items.map(() => `row-${idSeed.current++}`));
+
+  const add = () => {
+    if (items.length >= 4) return;
+    setItems([...items, ""]);
+    setIds((prev) => [...prev, `row-${idSeed.current++}`]);
+  };
   const set = (i, v) => setItems(items.map((x, j) => (j === i ? v : x)));
-  const remove = (i) => setItems(items.filter((_, j) => j !== i));
+  const remove = (i) => {
+    setItems(items.filter((_, j) => j !== i));
+    setIds((prev) => prev.filter((_, j) => j !== i));
+  };
   return (
     <div>
       <p className="mb-1.5 text-sm font-semibold">{label}</p>
       <div className="space-y-2">
-        {items.map((v, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <input className={inputCls} value={v} placeholder={placeholder} onChange={(e) => set(i, e.target.value)} />
-            <button type="button" onClick={() => remove(i)}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
+        <AnimatePresence initial={false}>
+          {items.map((v, i) => (
+            <motion.div
+              key={ids[i] ?? i}
+              layout
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              className="flex items-center gap-2"
+            >
+              <input className={inputCls} value={v} placeholder={placeholder} onChange={(e) => set(i, e.target.value)} />
+              <motion.button type="button" onClick={() => remove(i)} aria-label={`Remove ${placeholder} ${i + 1}`}
+                whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white">
+                <X className="h-4 w-4" />
+              </motion.button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
         {items.length < 4 && (
-          <button type="button" onClick={add}
+          <motion.button type="button" onClick={add}
+            whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
             className="flex items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary hover:text-primary-foreground">
             <Plus className="h-4 w-4" /> {addLabel}
-          </button>
+          </motion.button>
         )}
       </div>
     </div>
@@ -251,13 +290,7 @@ export default function Placement() {
     setPaying(true);
     try {
       const res = await unwrap(api.post("/placement/registration/pay", {}, { skipErrorToast: true }));
-      console.group("%c[Payment] Placement Registration — pay response", "color:#8a6d4a;font-weight:bold");
-      console.log(res);
-      console.groupEnd();
       if (res?.gatewayConfigured && res.forwardUrl && res.encRequest) {
-        console.log("[Payment] Submitting to Kotak:", {
-          forwardUrl: res.forwardUrl, accessCode: res.accessCode, orderId: res.orderId, amount: res.amount,
-        });
         const gForm = document.createElement("form");
         gForm.method = "POST";
         gForm.action = res.forwardUrl;
@@ -271,7 +304,6 @@ export default function Placement() {
         document.body.appendChild(gForm);
         gForm.submit();
       } else {
-        console.warn("[Payment] Gateway not configured — nothing submitted.", res?.message);
         toast.info(res?.message || "Online payment gateway is not enabled yet.");
       }
     } catch (err) {
@@ -320,7 +352,15 @@ export default function Placement() {
   }
 
   if (loading) {
-    return <div className="flex h-64 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>;
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <PageTitle icon={Briefcase}>Placement Registration</PageTitle>
+        </div>
+        <SkeletonCard lines={6} />
+        <SkeletonCard lines={8} />
+      </div>
+    );
   }
   if (error) {
     return <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
@@ -474,9 +514,11 @@ export default function Placement() {
         </CardContent>
       </Card>
 
-      {showPolicy && (
-        <PolicyModal onAccept={acceptAndSave} onClose={() => setShowPolicy(false)} accepting={saving} />
-      )}
+      <AnimatePresence>
+        {showPolicy && (
+          <PolicyModal onAccept={acceptAndSave} onClose={() => setShowPolicy(false)} accepting={saving} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

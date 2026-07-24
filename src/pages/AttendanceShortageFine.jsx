@@ -1,6 +1,7 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, CreditCard, CheckCircle2, Download } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
@@ -10,6 +11,7 @@ import { printPage } from "@/lib/print";
 import logo from "@/assets/images/mcc-title-brown.png";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SkeletonTable } from "@/components/ui/skeleton";
 
 const boxTable = { width: "100%", borderCollapse: "collapse", border: "1.5px solid #1a1208" };
 const boxLabel = { border: "1px solid #c9bda6", padding: "6px 10px", fontWeight: 700, width: "22%", verticalAlign: "top", background: "#f8f3ea" };
@@ -60,7 +62,11 @@ function PrintAttnShortageReceipt({ r }) {
         Total Paid: ₹{r.totalAmount}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 44, fontSize: 11, fontWeight: 600 }}>
+      <div style={{ marginTop: 16, fontSize: 10, color: "#6b5840" }}>
+        This receipt was generated automatically. Please check all the details carefully because accidental errors may occur.
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 28, fontSize: 11, fontWeight: 600 }}>
         <div>Date :</div>
         <div>Signature / Seal</div>
       </div>
@@ -142,7 +148,15 @@ export default function AttendanceShortageFine() {
   }
 
   if (loading) {
-    return <div className="flex h-64 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>;
+    return (
+      <div className="space-y-6">
+        <PageTitle icon={AlertTriangle}>Attendance Shortage Fine</PageTitle>
+        <p className="-mt-4 text-sm text-muted-foreground">
+          Pay the condonation fine for subjects blocked due to attendance shortage to become exam-eligible.
+        </p>
+        <SkeletonTable rows={4} cols={5} />
+      </div>
+    );
   }
   if (error) {
     return <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
@@ -154,7 +168,7 @@ export default function AttendanceShortageFine() {
   if (receipt) {
     return (
       <div className="space-y-6">
-        <button onClick={() => setReceipt(null)} className="text-sm font-semibold text-muted-foreground hover:text-foreground print:hidden">← Back</button>
+        <motion.button onClick={() => setReceipt(null)} whileTap={{ scale: 0.96 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="text-sm font-semibold text-muted-foreground hover:text-foreground print:hidden">← Back</motion.button>
         <Card className="print:hidden"><CardContent className="space-y-4 p-6 text-center">
           <p className="font-display text-lg font-bold">Attendance Shortage Fine — Receipt</p>
           <div className="grid gap-2 text-left text-sm sm:grid-cols-2">
@@ -211,7 +225,7 @@ export default function AttendanceShortageFine() {
           </div>
 
           {loadingSubjects ? (
-            <div className="flex h-32 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>
+            <SkeletonTable rows={3} cols={5} />
           ) : (subjects || []).length === 0 ? (
             <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">No shortage subjects for this exam.</CardContent></Card>
           ) : (
@@ -230,7 +244,7 @@ export default function AttendanceShortageFine() {
                     </thead>
                     <tbody>
                       {subjects.map((s) => (
-                        <tr key={s.subjectId} className="border-b border-border last:border-0">
+                        <tr key={s.subjectId} className={`border-b border-border last:border-0 transition-colors ${selected.includes(s.subjectId) ? "border-l-4 border-l-primary bg-primary/5" : ""}`}>
                           <td className="px-5 py-3">
                             {!s.paid && s.fineAmount != null && (
                               <input type="checkbox" className="h-4 w-4 accent-primary"
@@ -263,18 +277,22 @@ export default function AttendanceShortageFine() {
             </Card>
           )}
 
-          {selected.length > 0 && (
-            <Card><CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-              <p className="text-sm font-semibold">
-                Total for {selected.length} subject{selected.length === 1 ? "" : "s"}:{" "}
-                <span className="font-display text-lg font-extrabold text-primary">₹{total}</span>
-              </p>
-              <Button variant="gradient" onClick={pay} disabled={paying}>
-                {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                Pay ₹{total}
-              </Button>
-            </CardContent></Card>
-          )}
+          <AnimatePresence>
+            {selected.length > 0 && (
+              <motion.div key="payment-summary" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}>
+                <Card><CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+                  <p className="text-sm font-semibold">
+                    Total for {selected.length} subject{selected.length === 1 ? "" : "s"}:{" "}
+                    <span className="font-display text-lg font-extrabold text-primary">₹{total}</span>
+                  </p>
+                  <Button variant="gradient" onClick={pay} disabled={paying}>
+                    {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                    Pay ₹{total}
+                  </Button>
+                </CardContent></Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       )}
     </div>

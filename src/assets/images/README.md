@@ -1,6 +1,6 @@
 # Brand images
 
-Drop the **official Mount Carmel College logo** here and also copy it to the
+Drop the **official Mount Carmel (Deemed to be University) logo** here and also copy it to the
 app's `public/` folder so it can be served directly:
 
 ```

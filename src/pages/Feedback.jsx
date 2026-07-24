@@ -1,6 +1,7 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   AlertTriangle,
   Loader2,
@@ -14,6 +15,7 @@ import {
 import api, { unwrap } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SkeletonGrid, SkeletonCard } from "@/components/ui/skeleton";
 
 export default function Feedback() {
   const [forms, setForms] = useState(null);
@@ -39,8 +41,17 @@ export default function Feedback() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading feedback forms…
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-display text-2xl font-bold">Faculty Evaluation & Feedback</h1>
+            <p className="text-sm text-muted-foreground">Rate your courses and faculty for this semester.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={load}>
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
+        </div>
+        <SkeletonGrid items={4} />
       </div>
     );
   }
@@ -87,10 +98,13 @@ export default function Feedback() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {list.map((f) => (
-          <button
+          <motion.button
             key={f.id}
             onClick={() => setSelected(f.id)}
-            className="flex items-start gap-4 rounded-2xl border border-border bg-card p-5 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-card"
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            className="flex items-start gap-4 rounded-2xl border border-border bg-card p-5 text-left shadow-soft transition-[color,background-color,border-color,box-shadow,filter] hover:border-primary/40 hover:shadow-card"
           >
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-secondary text-secondary-foreground">
               <MessageSquareHeart className="h-5 w-5" />
@@ -102,7 +116,7 @@ export default function Feedback() {
                 Sem {f.semester} · Open till {f.dueDate}
               </p>
             </div>
-          </button>
+          </motion.button>
         ))}
       </div>
     </div>
@@ -166,11 +180,7 @@ function EvaluationForm({ formId, onBack }) {
   }
 
   if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading form…
-      </div>
-    );
+    return <SkeletonCard lines={6} />;
   }
 
   if (error && !data) {
@@ -240,9 +250,11 @@ function EvaluationForm({ formId, onBack }) {
                       {scale.map((opt) => {
                         const active = answers[q.id] === opt.value;
                         return (
-                          <button
+                          <motion.button
                             key={opt.value}
                             onClick={() => setAnswers((a) => ({ ...a, [q.id]: opt.value }))}
+                            whileTap={{ scale: 0.95 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
                             className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
                               active
                                 ? "border-primary bg-primary text-primary-foreground"
@@ -250,7 +262,7 @@ function EvaluationForm({ formId, onBack }) {
                             }`}
                           >
                             {opt.label}
-                          </button>
+                          </motion.button>
                         );
                       })}
                     </div>

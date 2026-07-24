@@ -1,13 +1,17 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, Globe, CheckCircle2, CreditCard, Download, ExternalLink, Save } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { goToGateway, handlePaymentReturn } from "@/lib/payments";
+import { printPage } from "@/lib/print";
+import logo from "@/assets/images/mcc-title-brown.png";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SkeletonCard } from "@/components/ui/skeleton";
 
 const inputCls =
   "w-full rounded-xl border border-input bg-card px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring";
@@ -18,6 +22,79 @@ const PACKAGES = [
   { id: "INTERNSHIP_ONLY", title: "Internship Only", price: 295, note: "₹250 + 18% GST" },
   { id: "INTERNSHIP_PLUS_TRAINING", title: "Placement Training + Internship", price: 1180, note: "₹1000 + 18% GST · Only for 2nd year students" },
 ];
+
+const boxTable = { width: "100%", borderCollapse: "collapse", border: "1.5px solid #1a1208" };
+const boxLabel = { border: "1px solid #c9bda6", padding: "6px 10px", fontWeight: 700, width: "22%", verticalAlign: "top", background: "#f8f3ea" };
+const boxValue = { border: "1px solid #c9bda6", padding: "6px 10px", width: "28%" };
+const boxValueWide = { border: "1px solid #c9bda6", padding: "6px 10px" };
+
+// The formal printed acknowledgement — hidden on screen, shown only inside .print-area during
+// printing (the global print stylesheet hides everything else; see PrintCeeReceipt in
+// CeeReceipts.jsx / PrintHallTicket in HallTickets.jsx for the same pattern).
+function PrintPlacementReceipt({ d }) {
+  const today = new Date().toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+  const pkg = PACKAGES.find((p) => p.id === d.regType)?.title || d.regType || "—";
+  return (
+    <div className="print-area" style={{ color: "#1a1208", fontFamily: "'Inter', Arial, sans-serif", fontSize: 12, padding: "0 4px" }}>
+      <div style={{ textAlign: "center", borderBottom: "2px solid #800020", paddingBottom: 8, marginBottom: 14 }}>
+        <img src={logo} alt="Mount Carmel University" style={{ height: 48, margin: "0 auto 6px", display: "block" }} />
+        <div style={{ marginTop: 8, fontSize: 13, fontWeight: 700, letterSpacing: "0.5px" }}>
+          INTERNATIONAL / INTERNSHIP REGISTRATION ACKNOWLEDGEMENT
+        </div>
+      </div>
+
+      <table style={boxTable}>
+        <tbody>
+          <tr>
+            <td style={boxLabel}>Name of the Student</td>
+            <td style={boxValueWide} colSpan={3}>{d.studentName || "—"}</td>
+          </tr>
+          <tr>
+            <td style={boxLabel}>Register Number</td>
+            <td style={boxValue}>{d.registerNo || "—"}</td>
+            <td style={boxLabel}>Course</td>
+            <td style={boxValue}>{d.course || "—"}</td>
+          </tr>
+          <tr>
+            <td style={boxLabel}>Date of Birth</td>
+            <td style={boxValue}>{d.dateOfBirth || "—"}</td>
+            <td style={boxLabel}>Package</td>
+            <td style={boxValue}>{pkg}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table style={{ ...boxTable, marginTop: 12 }}>
+        <tbody>
+          <tr>
+            <td style={boxLabel}>Unique ID</td>
+            <td style={boxValue}>{d.uniqueId || "—"}</td>
+            <td style={boxLabel}>Amount Paid</td>
+            <td style={boxValue}>{d.regAmount != null ? `₹${d.regAmount}` : "—"}</td>
+          </tr>
+          <tr>
+            <td style={boxLabel}>Email</td>
+            <td style={boxValue}>{d.studentEmail || "—"}</td>
+            <td style={boxLabel}>Mobile</td>
+            <td style={boxValue}>{d.studentMobile || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style={{ marginTop: 16, fontSize: 10, color: "#6b5840" }}>
+        This receipt was generated automatically. Please check all the details carefully because accidental errors may occur.
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 28, fontSize: 11, fontWeight: 600 }}>
+        <div>Date : {today}</div>
+        <div style={{ textAlign: "right" }}>
+          <div>Signature of the Student</div>
+          <div style={{ marginTop: 26 }}>Placement Coordinator</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function RO({ label, value }) {
   return (
@@ -117,7 +194,14 @@ export default function PlacementInternational() {
   }
 
   if (loading) {
-    return <div className="flex h-64 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>;
+    return (
+      <div className="space-y-6">
+        <PageTitle icon={Globe}>International / Internship Registration</PageTitle>
+        <SkeletonCard lines={2} />
+        <SkeletonCard lines={6} />
+        <SkeletonCard lines={5} />
+      </div>
+    );
   }
   if (error) {
     return <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
@@ -150,7 +234,7 @@ export default function PlacementInternational() {
           <p className="text-sm text-muted-foreground">Your Unique ID</p>
           <p className="font-display text-2xl font-extrabold text-primary">{d.uniqueId}</p>
           <div className="flex flex-wrap justify-center gap-3 pt-2 print:hidden">
-            <Button variant="outline" onClick={() => window.print()}><Download className="h-4 w-4" /> Print Receipt</Button>
+            <Button variant="outline" onClick={printPage}><Download className="h-4 w-4" /> Print Receipt</Button>
             <a href="/Student_Placement_Cell_SOP.pdf" target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary hover:text-primary-foreground">
               <Download className="h-4 w-4" /> Placement Handbook
@@ -161,6 +245,8 @@ export default function PlacementInternational() {
             </a>
           </div>
         </CardContent></Card>
+
+        <PrintPlacementReceipt d={d} />
       </div>
     );
   }
@@ -179,12 +265,23 @@ export default function PlacementInternational() {
           <SectionTitle>Choose Package</SectionTitle>
           <div className="grid gap-4 sm:grid-cols-2">
             {PACKAGES.map((p) => (
-              <button key={p.id} type="button" onClick={() => setRegType(p.id)}
-                className={`rounded-2xl border-2 p-4 text-left transition ${regType === p.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
-                <p className="font-display text-base font-bold">{p.title}</p>
-                <p className="mt-1 font-display text-2xl font-extrabold text-primary">₹{p.price}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{p.note}</p>
-              </button>
+              <motion.button key={p.id} type="button" onClick={() => setRegType(p.id)}
+                whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                className={`relative overflow-hidden rounded-2xl border-2 p-4 text-left transition-colors ${regType === p.id ? "border-transparent" : "border-border hover:border-primary/40"}`}>
+                <AnimatePresence>
+                  {regType === p.id && (
+                    <motion.div layoutId="package-selection-highlight"
+                      className="absolute inset-0 z-0 rounded-2xl bg-primary/5 ring-2 ring-primary"
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }} />
+                  )}
+                </AnimatePresence>
+                <div className="relative z-10">
+                  <p className="font-display text-base font-bold">{p.title}</p>
+                  <p className="mt-1 font-display text-2xl font-extrabold text-primary">₹{p.price}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{p.note}</p>
+                </div>
+              </motion.button>
             ))}
           </div>
         </CardContent>

@@ -49,13 +49,15 @@ export default function Toaster() {
                 <Icon className="h-5 w-5" />
               </span>
               <p className="flex-1 self-center text-sm font-medium text-foreground">{t.message}</p>
-              <button
+              <motion.button
                 onClick={() => remove(t.id)}
+                whileTap={{ scale: 0.85 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 className="shrink-0 self-start rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 aria-label="Dismiss"
               >
                 <X className="h-4 w-4" />
-              </button>
+              </motion.button>
             </motion.div>
           );
         })}

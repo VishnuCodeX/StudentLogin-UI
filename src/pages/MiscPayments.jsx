@@ -1,13 +1,16 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, Wallet, CheckCircle2, CalendarClock } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
+import { confirm } from "@/lib/confirm";
 import { goToGateway, handlePaymentReturn } from "@/lib/payments";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SkeletonGrid } from "@/components/ui/skeleton";
 
 export default function MiscPayments() {
   const [links, setLinks] = useState(null);
@@ -30,6 +33,14 @@ export default function MiscPayments() {
     setBusy(id);
     try {
       const res = await unwrap(api.post(`/misc-payments/${id}/pay`));
+      const item = (links || []).find((l) => l.id === id);
+      const ok = await confirm({
+        title: "Confirm payment",
+        message: `Proceed to pay ₹${item?.amount} for ${item?.name}?`,
+        confirmText: "Proceed",
+        cancelText: "Cancel",
+      });
+      if (!ok) return;
       // Kotak/CCAvenue → auto-submits to the gateway; if not configured, shows a notice.
       if (!goToGateway(res)) load();
     } catch {
@@ -49,16 +60,20 @@ export default function MiscPayments() {
         <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /> Refresh</Button>
       </div>
 
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="flex h-48 items-center justify-center text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
-        </div>
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <SkeletonGrid items={4} className="sm:grid-cols-2 lg:grid-cols-2" />
+        </motion.div>
       ) : error ? (
+        <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
           <AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p>
           <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
+        </motion.div>
       ) : (links || []).length === 0 ? (
+        <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-16 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-500/20">
             <Wallet className="h-7 w-7" />
@@ -66,7 +81,9 @@ export default function MiscPayments() {
           <p className="font-display text-lg font-semibold">No payments due</p>
           <p className="max-w-sm text-sm text-muted-foreground">You have no miscellaneous fee payments assigned right now.</p>
         </CardContent></Card>
+        </motion.div>
       ) : (
+        <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <div className="grid gap-3 sm:grid-cols-2">
           {links.map((l) => (
             <Card key={l.id}>
@@ -100,7 +117,9 @@ export default function MiscPayments() {
             </Card>
           ))}
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

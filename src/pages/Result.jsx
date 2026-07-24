@@ -1,9 +1,9 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useState } from "react";
+import PageTitle from "@/components/PageTitle";
 import {
   AlertTriangle,
-  Loader2,
   RefreshCw,
   Printer,
   Award,
@@ -12,8 +12,11 @@ import {
 } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SkeletonCard, SkeletonTable } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { getStudent } from "@/lib/auth";
+import logo from "@/assets/images/mcc-title-brown.png";
+import { printPage } from "@/lib/print";
 
 function gradeColor(grade) {
   if (!grade) return "hsl(var(--muted-foreground))";
@@ -51,9 +54,28 @@ export default function Result() {
   }, []);
 
   if (loading) {
+    const loadingName =
+      [student?.firstName, student?.lastName].filter(Boolean).join(" ") || "Student";
     return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading results…
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
+          <div>
+            <PageTitle icon={Award}>Semester Result / Marks Card</PageTitle>
+            <p className="text-sm text-muted-foreground">
+              {loadingName} · {student?.registerNo}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={printPage}>
+            <Printer className="h-4 w-4" /> Print Marks Card
+          </Button>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <SkeletonCard lines={2} />
+          <SkeletonCard lines={2} />
+          <SkeletonCard lines={2} />
+        </div>
+        <SkeletonTable rows={4} cols={8} />
+        <SkeletonTable rows={3} cols={8} />
       </div>
     );
   }
@@ -80,16 +102,17 @@ export default function Result() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
         <div>
-          <h1 className="font-display text-2xl font-bold">Semester Result / Marks Card</h1>
+          <PageTitle icon={Award}>Semester Result / Marks Card</PageTitle>
           <p className="text-sm text-muted-foreground">
             {fullName} · {student?.registerNo}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => window.print()}>
+        <Button variant="outline" size="sm" onClick={printPage}>
           <Printer className="h-4 w-4" /> Print Marks Card
         </Button>
       </div>
 
+      <div className="space-y-6 print:hidden">
       {/* CGPA summary */}
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="bg-joy border-0 text-white">
@@ -227,6 +250,106 @@ export default function Result() {
           </CardContent>
         </Card>
       ))}
+      </div>
+
+      <PrintMarksCard
+        semesters={semesters}
+        student={student}
+        cgpa={data?.cgpa}
+        totalCredits={data?.totalCredits}
+      />
+    </div>
+  );
+}
+
+/* ── Formal printed marks card (hidden on screen, shown only when printing) ── */
+const tableStyle = { width: "100%", borderCollapse: "collapse" };
+const labelCell = { border: "1px solid #c9bda6", padding: "5px 9px", fontWeight: 700, background: "#f3ece0", whiteSpace: "nowrap", width: "14%" };
+const valueCell = { border: "1px solid #c9bda6", padding: "5px 9px", width: "36%" };
+const th = (align = "center") => ({ border: "1px solid #6e5638", padding: "6px 7px", background: "#5c4632", color: "#fdf8ee", textAlign: align, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.4px" });
+const td = (align = "center") => ({ border: "1px solid #c9bda6", padding: "5px 7px", textAlign: align });
+
+function PrintMarksCard({ semesters, student, cgpa, totalCredits }) {
+  const today = new Date().toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+  const name = [student?.firstName, student?.lastName].filter(Boolean).join(" ") || "—";
+  return (
+    <div className="print-area" style={{ color: "#1a1208", fontFamily: "'Inter', Arial, sans-serif", fontSize: 12, padding: "2px 6px" }}>
+      {/* letterhead */}
+      <div style={{ textAlign: "center", borderBottom: "2.5px solid #800020", paddingBottom: 10, marginBottom: 16 }}>
+        <img src={logo} alt="Mount Carmel (Deemed to be University)" style={{ height: 58, margin: "0 auto 4px", display: "block" }} />
+        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", color: "#800020" }}>
+          Statement of Marks
+        </div>
+      </div>
+
+      {/* student details */}
+      <table style={{ ...tableStyle, marginBottom: 18 }}>
+        <tbody>
+          <tr>
+            <td style={labelCell}>Name</td><td style={valueCell}>{name}</td>
+            <td style={labelCell}>Register No</td><td style={valueCell}>{student?.registerNo || "—"}</td>
+          </tr>
+          <tr>
+            <td style={labelCell}>Programme</td><td style={valueCell}>{student?.programme || "—"}</td>
+            <td style={labelCell}>Issued On</td><td style={valueCell}>{today}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* per-semester tables */}
+      {semesters.map((sem) => (
+        <div key={sem.semester} style={{ marginBottom: 20, breakInside: "avoid" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>
+              Semester {sem.semester}
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 600 }}>
+              SGPA: {dash(sem.sgpa)} · {sem.totalCredits} credits · {sem.allPassed ? "All Cleared" : "Has Backlog"}
+            </div>
+          </div>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={th("left")}>Subject</th>
+                <th style={th()}>CIA</th>
+                <th style={th()}>ESE</th>
+                <th style={th()}>Total</th>
+                <th style={th()}>Grade</th>
+                <th style={th()}>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sem.subjects.map((s, i) => (
+                <tr key={i}>
+                  <td style={td("left")}>{s.subjectName} <span style={{ color: "#6b5840" }}>({s.subjectCode})</span></td>
+                  <td style={td()}>{dash(s.ciaAwarded)}</td>
+                  <td style={td()}>{dash(s.eseAwarded)}</td>
+                  <td style={{ ...td(), fontWeight: 700 }}>{dash(s.totalAwarded)}</td>
+                  <td style={{ ...td(), fontWeight: 700 }}>{dash(s.grade)}</td>
+                  <td style={td()}>{s.result}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+
+      {/* CGPA summary line */}
+      <div style={{ border: "1px solid #6e5638", background: "#f3ece0", padding: "8px 12px", display: "flex", justifyContent: "space-between", fontWeight: 700, marginBottom: 24 }}>
+        <span>Cumulative GPA: {dash(cgpa)}</span>
+        <span>Total Credits Earned: {totalCredits ?? 0}</span>
+        <span>Semesters Completed: {semesters.length}</span>
+      </div>
+
+      {/* footer */}
+      <div style={{ marginTop: 30, display: "flex", justifyContent: "space-between", alignItems: "flex-end", fontSize: 10.5 }}>
+        <div style={{ color: "#6b5840" }}>
+          Generated on {today}.<br />This receipt was generated automatically. Please check all the details carefully because accidental errors may occur.
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ borderTop: "1px solid #1a1208", width: 170, paddingTop: 4, fontWeight: 600 }}>Controller of Examinations</div>
+        </div>
+      </div>
     </div>
   );
 }

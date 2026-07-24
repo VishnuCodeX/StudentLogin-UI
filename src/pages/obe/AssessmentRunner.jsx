@@ -9,7 +9,9 @@ import {
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { confirm } from "@/lib/confirm";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Full-screen committed assessment taker. Once started, there's no "back to list" until submit,
 // and a beforeunload guard warns on navigation away — the "must complete once started" rule.
@@ -80,10 +82,11 @@ export default function AssessmentRunner({ kind, item, onExit }) {
       {/* header */}
       <div className="flex items-center justify-between gap-3 bg-joy px-5 py-3 text-white">
         <div className="flex min-w-0 items-center gap-2">
-          <button onClick={goBack} title="Back"
+          <motion.button onClick={goBack} title="Back"
+            whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
             className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white/90 hover:bg-white/15">
             <ArrowLeft className="h-5 w-5" />
-          </button>
+          </motion.button>
           <ClipboardCheck className="h-5 w-5 shrink-0" />
           <p className="truncate font-display text-base font-bold">{paper?.title || item.title}</p>
         </div>
@@ -97,7 +100,19 @@ export default function AssessmentRunner({ kind, item, onExit }) {
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-4 py-6">
           {phase === "loading" && (
-            <div className="flex h-64 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Preparing…</div>
+            <div className="space-y-4">
+              <Skeleton className="h-14 w-full rounded-2xl" />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="rounded-3xl border border-border bg-card p-5 shadow-soft">
+                  <Skeleton className="h-4 w-3/4" />
+                  <div className="mt-3 space-y-2">
+                    <Skeleton className="h-10 w-full rounded-xl" />
+                    <Skeleton className="h-10 w-full rounded-xl" />
+                    <Skeleton className="h-10 w-full rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
 
           {phase === "error" && (
@@ -145,15 +160,17 @@ export default function AssessmentRunner({ kind, item, onExit }) {
           )}
 
           {phase === "done" && (
-            <div className="flex flex-col items-center gap-4 py-16 text-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              className="flex flex-col items-center gap-4 py-16 text-center"
+            >
               <span className="grid h-16 w-16 place-items-center rounded-3xl bg-success/15 text-success"><CheckCircle2 className="h-9 w-9" /></span>
               {isQuiz ? (
                 <>
                   <h2 className="font-display text-2xl font-bold">Quiz submitted</h2>
-                  <div className="flex items-center gap-2 text-lg"><Trophy className="h-5 w-5 text-amber-500" />
-                    <span className="font-display font-bold">{result?.score}/{result?.maxScore}</span>
-                    <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary">{result?.percentage}%</span>
-                  </div>
+                  <QuizScoreReveal result={result} />
                   <p className="text-sm text-muted-foreground">{result?.correct} of {result?.total} correct.</p>
                 </>
               ) : (
@@ -166,12 +183,44 @@ export default function AssessmentRunner({ kind, item, onExit }) {
                 <Button variant="outline" onClick={onExit}><ArrowLeft className="h-4 w-4" /> Back to list</Button>
                 {isQuiz && <Button className="bg-joy text-white" onClick={() => navigate("/obe/results")}>View all results</Button>}
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
     </div>,
     document.getElementById("modal-root") || document.body
+  );
+}
+
+function QuizScoreReveal({ result }) {
+  const [t, setT] = useState(0);
+
+  useEffect(() => {
+    const duration = 900;
+    const startTime = performance.now();
+    let rafId;
+
+    const step = (now) => {
+      const elapsed = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - elapsed, 3);
+      setT(eased);
+      if (elapsed < 1) {
+        rafId = requestAnimationFrame(step);
+      }
+    };
+
+    rafId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
+  const score = Math.round(t * (result?.score ?? 0));
+  const percentage = Math.round(t * (result?.percentage ?? 0));
+
+  return (
+    <div className="flex items-center gap-2 text-lg"><Trophy className="h-5 w-5 text-amber-500" />
+      <span className="font-display font-bold">{score}/{result?.maxScore}</span>
+      <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary">{percentage}%</span>
+    </div>
   );
 }
 
@@ -192,13 +241,14 @@ function renderQuestion(q, a, setQ, isQuiz) {
           {(q.options || []).map((o) => {
             const on = sel.includes(o.id);
             return (
-              <button key={o.id} type="button" onClick={() => toggle(o.id)}
-                className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left text-sm font-medium transition ${on ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/30" : "border-border hover:bg-muted"}`}>
+              <motion.button key={o.id} type="button" onClick={() => toggle(o.id)}
+                whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left text-sm font-medium transition-[color,background-color,border-color,box-shadow,filter] ${on ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/30" : "border-border hover:bg-muted"}`}>
                 <span className={`grid h-5 w-5 shrink-0 place-items-center ${multi ? "rounded" : "rounded-full"} border-2 ${on ? "border-primary bg-primary text-white" : "border-muted-foreground/40"}`}>
                   {on && <CheckCircle2 className="h-3.5 w-3.5" />}
                 </span>
                 {o.optionText}
-              </button>
+              </motion.button>
             );
           })}
         </div>
@@ -208,10 +258,11 @@ function renderQuestion(q, a, setQ, isQuiz) {
       return (
         <div className="flex gap-2">
           {["TRUE", "FALSE"].map((v) => (
-            <button key={v} type="button" onClick={() => setQ(q.id, { answerText: v })}
-              className={`rounded-xl border px-5 py-2 text-sm font-semibold transition ${a.answerText === v ? "border-transparent bg-joy text-white shadow-pop font-semibold" : "border-border hover:bg-muted"}`}>
+            <motion.button key={v} type="button" onClick={() => setQ(q.id, { answerText: v })}
+              whileTap={{ scale: 0.96 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              className={`rounded-xl border px-5 py-2 text-sm font-semibold transition-[color,background-color,border-color,box-shadow,filter] ${a.answerText === v ? "border-transparent bg-joy text-white shadow-pop font-semibold" : "border-border hover:bg-muted"}`}>
               {v === "TRUE" ? "True" : "False"}
-            </button>
+            </motion.button>
           ))}
         </div>
       );
@@ -230,10 +281,11 @@ function renderQuestion(q, a, setQ, isQuiz) {
         {(q.options || []).map((o) => {
           const on = a.selectedOptionId === o.id;
           return (
-            <button key={o.id} type="button" onClick={() => setQ(q.id, { selectedOptionId: o.id })}
-              className={`rounded-xl border px-3 py-2 text-sm transition ${on ? "border-transparent bg-joy text-white shadow-pop font-semibold" : "border-border hover:bg-muted"}`}>
+            <motion.button key={o.id} type="button" onClick={() => setQ(q.id, { selectedOptionId: o.id })}
+              whileTap={{ scale: 0.96 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              className={`rounded-xl border px-3 py-2 text-sm transition-[color,background-color,border-color,box-shadow,filter] ${on ? "border-transparent bg-joy text-white shadow-pop font-semibold" : "border-border hover:bg-muted"}`}>
               {o.optionText}
-            </button>
+            </motion.button>
           );
         })}
       </div>

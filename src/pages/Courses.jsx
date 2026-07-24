@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
 import {
   Loader2, AlertTriangle, RefreshCw, ArrowLeft, BookOpen, FileText, Megaphone,
@@ -14,20 +15,31 @@ import { setActivityContext, trackView, trackDownload, startResource } from "@/l
 import SelfAssessmentRunner from "@/pages/lms/SelfAssessmentRunner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton, SkeletonGrid, SkeletonList, SkeletonTable } from "@/components/ui/skeleton";
 
 const inputCls = "w-full rounded-xl border border-input bg-card px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring";
 
 function Modal({ title, onClose, children }) {
   return createPortal(
     <div className="fixed inset-0 z-[95] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-border bg-card shadow-pop">
+      <motion.div
+        className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={onClose}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+      />
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="course-modal-title"
+        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-border bg-card shadow-pop"
+        initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92, y: 16 }}
+        transition={{ type: "spring", stiffness: 320, damping: 26 }}
+      >
         <div className="flex items-center justify-between gap-3 bg-joy px-5 py-4 text-white">
-          <h3 className="font-display text-lg font-bold">{title}</h3>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-white/85 hover:bg-white/15"><X className="h-4 w-4" /></button>
+          <h3 id="course-modal-title" className="font-display text-lg font-bold">{title}</h3>
+          <motion.button onClick={onClose} aria-label="Close" whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="grid h-8 w-8 place-items-center rounded-lg text-white/85 hover:bg-white/15"><X className="h-4 w-4" /></motion.button>
         </div>
         <div className="p-5">{children}</div>
-      </div>
+      </motion.div>
     </div>,
     document.getElementById("modal-root") || document.body
   );
@@ -159,7 +171,7 @@ export default function Courses() {
     assignments: assignments.filter((a) => a.subjectCode === s.subjectCode).length,
     announcements: announcements.filter((a) => a.subjectId === s.subjectId).length,
   }), [materials, assignments, announcements]);
-  const chip = (on) => `rounded-full px-4 py-1.5 text-sm font-semibold transition ${on ? "bg-joy text-white shadow-card" : "bg-muted text-muted-foreground hover:bg-muted/70"}`;
+  const chip = (on) => `rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${on ? "bg-joy text-white shadow-card" : "bg-muted text-muted-foreground hover:bg-muted/70"}`;
 
   async function downloadFile(kind, f) {
     const resType = kind === "assignment" ? "ASSIGNMENT" : "MATERIAL";
@@ -185,7 +197,20 @@ export default function Courses() {
     if (active) setActivityContext({ subjectId: active.subjectId, batchYear: info?.academicYear });
   }, [active, info]);
 
-  if (loading) return <div className="flex h-64 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading courses…</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <PageTitle icon={GraduationCap}>My Courses</PageTitle>
+            <p className="text-sm text-muted-foreground">Materials, assignments, grades and announcements — by subject.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /> Refresh</Button>
+        </div>
+        <SkeletonGrid items={6} />
+      </div>
+    );
+  }
   if (error) return <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center"><AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p><Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button></CardContent></Card>;
 
   // ── subject detail ──
@@ -222,9 +247,9 @@ export default function Courses() {
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Semester</span>
           {semInfo.sems.map((n) => (
-            <button key={n} onClick={() => setSemFilter(n)} className={chip(semFilter === n)}>Sem {n}</button>
+            <motion.button key={n} onClick={() => setSemFilter(n)} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className={chip(semFilter === n)}>Sem {n}</motion.button>
           ))}
-          <button onClick={() => setSemFilter("ALL")} className={chip(semFilter === "ALL")}>All</button>
+          <motion.button onClick={() => setSemFilter("ALL")} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className={chip(semFilter === "ALL")}>All</motion.button>
         </div>
       )}
 
@@ -237,8 +262,9 @@ export default function Courses() {
           {shownSubjects.map((s) => {
             const c = countFor(s);
             return (
-              <button key={s.subjectId} onClick={() => { setActive(s); setTab("materials"); }}
-                className="group flex flex-col rounded-3xl border border-border bg-card p-5 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-card">
+              <motion.button key={s.subjectId} onClick={() => { setActive(s); setTab("materials"); }}
+                whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                className="group flex flex-col rounded-3xl border border-border bg-card p-5 text-left shadow-soft transition-[color,background-color,border-color,box-shadow,filter] hover:border-primary/40 hover:shadow-card">
                 <span className="bg-joy grid h-11 w-11 place-items-center rounded-2xl text-white"><BookOpen className="h-5 w-5" /></span>
                 <p className="mt-3 font-display text-base font-bold leading-tight">{s.subjectName}</p>
                 <p className="text-xs font-semibold text-primary">{s.subjectCode}</p>
@@ -247,7 +273,7 @@ export default function Courses() {
                   <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> {c.assignments}</span>
                   <span className="flex items-center gap-1"><Megaphone className="h-3 w-3" /> {c.announcements}</span>
                 </div>
-              </button>
+              </motion.button>
             );
           })}
         </div>
@@ -291,11 +317,21 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
     return m;
   }, [submissions]);
 
+  // Mastery rollup for this subject's practice quizzes — average best-score % across
+  // attempted quizzes, computed client-side from the same selfAssessments already fetched.
+  const saStats = useMemo(() => {
+    const list = selfAssessments || [];
+    const attempted = list.filter((s) => s.attempts > 0);
+    if (!attempted.length) return null;
+    const avgPct = attempted.reduce((sum, s) => sum + (s.totalMarks ? (s.bestScore / s.totalMarks) * 100 : 0), 0) / attempted.length;
+    return { attemptedCount: attempted.length, total: list.length, avgPct: Math.round(avgPct) };
+  }, [selfAssessments]);
+
   return (
     <div className="space-y-5">
-      <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
+      <motion.button onClick={onBack} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> My Courses
-      </button>
+      </motion.button>
       <div className="flex items-center gap-3">
         <span className="bg-joy grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white"><BookOpen className="h-6 w-6" /></span>
         <div>
@@ -304,15 +340,21 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="relative flex gap-2 overflow-x-auto no-scrollbar">
         {TABS.map(([id, label, Icon]) => (
-          <button key={id} onClick={() => setTab(id)}
-            className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${tab === id ? "bg-joy text-white" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
-            <Icon className="h-4 w-4" /> {label}
-          </button>
+          <motion.button key={id} onClick={() => setTab(id)}
+            whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            className={`relative flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${tab === id ? "text-white" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
+            {tab === id && (
+              <motion.div layoutId="courseTabPill" className="bg-joy absolute inset-0 rounded-full" transition={{ type: "spring", stiffness: 500, damping: 30 }} />
+            )}
+            <span className="relative z-10 flex items-center gap-1.5"><Icon className="h-4 w-4" /> {label}</span>
+          </motion.button>
         ))}
       </div>
 
+      <AnimatePresence mode="wait">
+        <motion.div key={tab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}>
       {tab === "materials" && (
         <FileList items={materials} kind="material" busyId={busyId} downloadFile={downloadFile}
           onView={(item) => openViewer(item, "material", setViewing)}
@@ -334,12 +376,17 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <SubmissionBadge s={s} />
                         {s?.status !== "GRADED" && (
-                          <button onClick={() => setSubmitFor(a)}
+                          <motion.button onClick={() => setSubmitFor(a)}
+                            whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
                             className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground">
                             {s ? "Re-submit" : "Submit work"}
-                          </button>
+                          </motion.button>
                         )}
                       </div>
+                      {s?.fileName && <p className="mt-1 text-[11px] text-muted-foreground">Submitted file: {s.fileName}</p>}
+                      {s?.status === "GRADED" && s?.gradedByName && (
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">Graded by {s.gradedByName}{s.gradedDate ? ` on ${s.gradedDate}` : ""}</p>
+                      )}
                       {s?.feedback && <p className="mt-1.5 rounded-lg bg-muted/50 p-2 text-xs"><b>Feedback:</b> {s.feedback}</p>}
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
@@ -367,6 +414,13 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
         ) : (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">Practice quizzes — for your own feedback only. They don't affect your marks, and you can retake them freely.</p>
+            {saStats && (
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-muted/40 px-4 py-2.5 text-sm">
+                <Trophy className="h-4 w-4 text-primary" />
+                <span className="font-bold text-primary">{saStats.avgPct}% average</span>
+                <span className="text-muted-foreground">across {saStats.attemptedCount}/{saStats.total} quizzes attempted</span>
+              </div>
+            )}
             {selfAssessments.map((s) => {
               const done = s.attempts > 0;
               return (
@@ -398,14 +452,17 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
         )
       )}
 
-      {takingSA && (
-        <SelfAssessmentRunner item={takingSA}
-          onExit={() => { setTakingSA(null); reloadSelfAssessments && reloadSelfAssessments(); }} />
-      )}
-
       {tab === "syllabus" && (
         syllabus === null ? (
-          <div className="flex h-28 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>
+          <div className="space-y-3">
+            {[0, 1].map((i) => (
+              <Card key={i}><CardContent className="space-y-2 p-4">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-2/3" />
+              </CardContent></Card>
+            ))}
+          </div>
         ) : (syllabus.units || []).length === 0 ? (
           <Empty text="Syllabus not published yet." />
         ) : (
@@ -437,7 +494,12 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
 
       {tab === "lessonplan" && (
         lessonPlan === null ? (
-          <div className="flex h-28 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>
+          <div className="space-y-3">
+            <Card><CardContent className="flex flex-wrap items-center gap-x-6 gap-y-2 p-4">
+              {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-4 w-24" />)}
+            </CardContent></Card>
+            <SkeletonTable rows={4} cols={4} />
+          </div>
         ) : !lessonPlan.plan && (lessonPlan.sessions || []).length === 0 ? (
           <Empty text="Teaching plan not published yet." />
         ) : (
@@ -509,13 +571,14 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
               <Button size="sm" variant="gradient" onClick={() => setAskOpen(true)}><Plus className="h-4 w-4" /> Ask a question</Button>
             </div>
             {threads === null ? (
-              <div className="flex h-28 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>
+              <SkeletonList rows={3} />
             ) : threads.length === 0 ? (
               <Empty text="No discussion threads yet. Be the first to ask." />
             ) : (
           <div className="space-y-2">
             {threads.map((t) => (
-              <button key={t.id} onClick={() => setOpenThread(t.id)}
+              <motion.button key={t.id} onClick={() => setOpenThread(t.id)}
+                whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3.5 text-left transition-colors hover:bg-muted">
                 <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><MessageCircle className="h-4 w-4" /></span>
                 <div className="min-w-0 flex-1">
@@ -526,26 +589,39 @@ function CourseDetail({ subject, onBack, tab, setTab, materials, assignments, an
                   </div>
                   <p className="text-xs text-muted-foreground">{t.authorName} · {t.replyCount || 0} repl{(t.replyCount || 0) === 1 ? "y" : "ies"} · {t.lastActivityDate}</p>
                 </div>
-              </button>
+              </motion.button>
             ))}
           </div>
             )}
           </div>
         )
       )}
+        </motion.div>
+      </AnimatePresence>
 
-      {submitFor && (
-        <SubmitModal assignment={submitFor} onClose={() => setSubmitFor(null)}
-          onDone={() => { setSubmitFor(null); reloadSubmissions(); }} />
+      {takingSA && (
+        <SelfAssessmentRunner item={takingSA}
+          onExit={() => { setTakingSA(null); reloadSelfAssessments && reloadSelfAssessments(); }} />
       )}
-      {askOpen && (
-        <AskModal subjectId={subject.subjectId} onClose={() => setAskOpen(false)}
-          onDone={() => { setAskOpen(false); loadThreads(); }} />
-      )}
-      {viewing && (
-        <ResourceViewer item={viewing.item} kind={viewing.kind}
-          onClose={() => setViewing(null)} downloadFile={downloadFile} />
-      )}
+
+      <AnimatePresence>
+        {submitFor && (
+          <SubmitModal assignment={submitFor} onClose={() => setSubmitFor(null)}
+            onDone={() => { setSubmitFor(null); reloadSubmissions(); }} />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {askOpen && (
+          <AskModal subjectId={subject.subjectId} onClose={() => setAskOpen(false)}
+            onDone={() => { setAskOpen(false); loadThreads(); }} />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {viewing && (
+          <ResourceViewer item={viewing.item} kind={viewing.kind}
+            onClose={() => setViewing(null)} downloadFile={downloadFile} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -644,12 +720,21 @@ function ResourceViewer({ item, kind, onClose, downloadFile }) {
 
   return createPortal(
     <div className="fixed inset-0 z-[95] flex items-center justify-center p-3 sm:p-6">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div ref={panelRef}
-        className={`relative flex h-[86vh] w-full max-w-5xl flex-col overflow-hidden border border-border bg-card shadow-pop ${isFullscreen ? "rounded-none" : "rounded-3xl"}`}>
+      <motion.div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+      />
+      <motion.div ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="resource-viewer-title"
+        className={`relative flex h-[86vh] w-full max-w-5xl flex-col overflow-hidden border border-border bg-card shadow-pop ${isFullscreen ? "rounded-none" : "rounded-3xl"}`}
+        initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92, y: 16 }}
+        transition={{ type: "spring", stiffness: 320, damping: 26 }}
+      >
         <div className="flex items-center justify-between gap-3 bg-joy px-5 py-3 text-white">
           <div className="min-w-0">
-            <p className="truncate font-display text-base font-bold">{item.title || item.filename}</p>
+            <p id="resource-viewer-title" className="truncate font-display text-base font-bold">{item.title || item.filename}</p>
             <p className="text-[11px] text-white/70">
               {resType === "ASSIGNMENT" ? "Assignment" : "Material"}
               {item.fileType ? ` · ${String(item.fileType).toUpperCase()}` : ""}
@@ -665,15 +750,21 @@ function ResourceViewer({ item, kind, onClose, downloadFile }) {
                 className="rounded-lg bg-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/25">Open in new tab</a>
             )}
             {(type === "office" || type === "other" || type === "video") && (
-              <button onClick={() => downloadFile(kind, item)}
-                className="rounded-lg bg-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/25">Download</button>
+              <motion.button onClick={() => downloadFile(kind, item)}
+                whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                className="rounded-lg bg-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/25">Download</motion.button>
             )}
-            <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-white/85 hover:bg-white/15"><X className="h-4 w-4" /></button>
+            <motion.button onClick={onClose} aria-label="Close" whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="grid h-8 w-8 place-items-center rounded-lg text-white/85 hover:bg-white/15"><X className="h-4 w-4" /></motion.button>
           </div>
         </div>
         <div className="relative flex-1 bg-[#1f1a17]">
           {loadingBlob ? (
-            <div className="flex h-full items-center justify-center text-white/80"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>
+            <div className="flex h-full items-center justify-center p-6">
+              <div className="w-full max-w-md space-y-3">
+                <div className="mx-auto h-3 w-1/2 animate-pulse rounded bg-white/15" />
+                <div className="h-52 w-full animate-pulse rounded-2xl bg-white/10" />
+              </div>
+            </div>
           ) : err ? (
             <div className="flex h-full items-center justify-center text-white/80">{err}</div>
           ) : type === "youtube" && yt ? (
@@ -697,7 +788,7 @@ function ResourceViewer({ item, kind, onClose, downloadFile }) {
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>,
     document.getElementById("modal-root") || document.body
   );
@@ -820,11 +911,21 @@ function ThreadView({ threadId, onBack }) {
     } catch (e) { toast.error(e?.response?.data?.message || "Could not reply."); }
     finally { setBusy(false); }
   }
-  if (!data) return <div className="flex h-28 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>;
+  if (!data) return (
+    <div className="space-y-3">
+      <Skeleton className="h-4 w-24" />
+      <Card><CardContent className="space-y-2 p-4">
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-2/3" />
+      </CardContent></Card>
+      <SkeletonList rows={2} />
+    </div>
+  );
   const t = data.thread;
   return (
     <div className="space-y-3">
-      <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Threads</button>
+      <motion.button onClick={onBack} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Threads</motion.button>
       {t && (
         <Card><CardContent className="p-4">
           <p className="font-display text-base font-bold">{t.title}</p>
@@ -855,9 +956,9 @@ function ThreadView({ threadId, onBack }) {
 
 function SubmissionBadge({ s }) {
   if (!s) return <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-bold text-muted-foreground"><Clock className="h-3 w-3" /> Not submitted</span>;
-  if (s.status === "GRADED") return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700"><GraduationCap className="h-3 w-3" /> Graded {s.marks}{s.maxMarks ? ` / ${s.maxMarks}` : ""}</span>;
-  if (s.status === "LATE") return <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">Submitted (Late)</span>;
-  return <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700"><CheckCircle2 className="h-3 w-3" /> Submitted</span>;
+  if (s.status === "GRADED") return <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-xs font-bold text-success"><GraduationCap className="h-3 w-3" /> Graded {s.marks}{s.maxMarks ? ` / ${s.maxMarks}` : ""}</span>;
+  if (s.status === "LATE") return <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-600 dark:text-amber-400">Submitted (Late)</span>;
+  return <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 px-2.5 py-1 text-xs font-bold"><CheckCircle2 className="h-3 w-3" /> Submitted</span>;
 }
 
 function Empty({ text }) {

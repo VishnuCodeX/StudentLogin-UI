@@ -24,16 +24,19 @@ export default function AbsenceModal({ subject, onClose }) {
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
       />
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="absence-modal-title"
         className="relative max-h-[82vh] w-full max-w-lg overflow-hidden rounded-3xl border border-border bg-card shadow-pop"
         initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 320, damping: 26 }}
       >
         <div className="flex items-start justify-between gap-3 border-b border-border bg-joy p-5 text-white">
           <div>
-            <h3 className="font-display text-lg font-bold">Absence Details</h3>
+            <h3 id="absence-modal-title" className="font-display text-lg font-bold">Absence Details</h3>
             <p className="text-sm text-white/80">{subject.subjectName} · {subject.subjectCode}</p>
           </div>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-white/80 hover:bg-white/15"><X className="h-4 w-4" /></button>
+          <motion.button onClick={onClose} aria-label="Close" whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="grid h-8 w-8 place-items-center rounded-lg text-white/80 hover:bg-white/15"><X className="h-4 w-4" /></motion.button>
         </div>
         <div className="max-h-[62vh] overflow-y-auto p-0">
           {rows === null ? (
@@ -65,8 +68,8 @@ export default function AbsenceModal({ subject, onClose }) {
                     <td className="px-5 py-2.5">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                         /co-?curricular/i.test(r.leaveType) ? "bg-primary/15 text-primary"
-                        : /leave/i.test(r.leaveType) ? "bg-amber-100 text-amber-700"
-                        : "bg-rose-100 text-rose-700"}`}>{r.leaveType}</span>
+                        : /leave/i.test(r.leaveType) ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                        : "bg-destructive/15 text-destructive"}`}>{r.leaveType}</span>
                     </td>
                   </motion.tr>
                 ))}

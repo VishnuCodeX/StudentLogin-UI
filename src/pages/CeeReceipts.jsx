@@ -1,14 +1,16 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
-import { Loader2, AlertTriangle, RefreshCw, Receipt, Download } from "@/lib/icons";
+import { AlertTriangle, RefreshCw, Receipt, Download } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { printPage } from "@/lib/print";
 import logo from "@/assets/images/mcc-title-brown.png";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 const boxTable = { width: "100%", borderCollapse: "collapse", border: "1.5px solid #1a1208" };
 const boxLabel = { border: "1px solid #c9bda6", padding: "6px 10px", fontWeight: 700, width: "22%", verticalAlign: "top", background: "#f8f3ea" };
@@ -76,7 +78,11 @@ function PrintCeeReceipt({ d }) {
         </tbody>
       </table>
 
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 44, fontSize: 11, fontWeight: 600 }}>
+      <div style={{ marginTop: 16, fontSize: 10, color: "#6b5840" }}>
+        This receipt was generated automatically. Please check all the details carefully because accidental errors may occur.
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 28, fontSize: 11, fontWeight: 600 }}>
         <div>Date :</div>
         <div style={{ textAlign: "right" }}>
           <div>Signature of the student</div>
@@ -113,7 +119,18 @@ export default function CeeReceipts() {
   }
 
   if (loading) {
-    return <div className="flex h-64 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>;
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <PageTitle icon={Receipt}>CEE Receipts</PageTitle>
+            <p className="text-sm text-muted-foreground">Your paid CEE / SEC course receipts.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /> Refresh</Button>
+        </div>
+        <SkeletonList rows={4} />
+      </div>
+    );
   }
   if (error) {
     return <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
@@ -125,7 +142,14 @@ export default function CeeReceipts() {
   if (detail) {
     return (
       <div className="space-y-6">
-        <button onClick={() => setDetail(null)} className="text-sm font-semibold text-muted-foreground hover:text-foreground print:hidden">← Back</button>
+        <motion.button
+          onClick={() => setDetail(null)}
+          whileTap={{ scale: 0.95 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+          className="text-sm font-semibold text-muted-foreground hover:text-foreground print:hidden"
+        >
+          ← Back
+        </motion.button>
 
         {/* on-screen preview */}
         <Card className="mx-auto max-w-2xl print:hidden">
@@ -180,7 +204,14 @@ export default function CeeReceipts() {
       ) : (
         <div className="space-y-3">
           {receipts.map((r) => (
-            <button key={r.id} onClick={() => openDetail(r.id)} className="block w-full text-left">
+            <motion.button
+              key={r.id}
+              onClick={() => openDetail(r.id)}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              className="block w-full text-left"
+            >
               <Card className="transition hover:border-primary/40 hover:shadow-card">
                 <CardContent className="flex items-center justify-between gap-3 p-4">
                   <div className="min-w-0">
@@ -193,7 +224,7 @@ export default function CeeReceipts() {
                   {r.amount != null && <span className="shrink-0 font-display text-lg font-bold">₹{r.amount}</span>}
                 </CardContent>
               </Card>
-            </button>
+            </motion.button>
           ))}
         </div>
       )}

@@ -1,42 +1,47 @@
 // Developed By: Vishnukarthick K
 
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import Toaster from "@/components/Toaster";
 import ConfirmHost from "@/components/ConfirmHost";
 import SessionExpiredModal from "@/components/SessionExpiredModal";
-import Login from "@/pages/Login";
-import Dashboard from "@/pages/Dashboard";
-import Attendance from "@/pages/Attendance";
-import Fees from "@/pages/Fees";
-import Courses from "@/pages/Courses";
-import ObeList from "@/pages/obe/ObeList";
-import ObeResults from "@/pages/obe/ObeResults";
-import TimeTable from "@/pages/TimeTable";
-import ExamTimeTable from "@/pages/ExamTimeTable";
-import HallTickets from "@/pages/HallTickets";
-import OnlineApplications from "@/pages/OnlineApplications";
-import MiscPayments from "@/pages/MiscPayments";
-import Cee from "@/pages/Cee";
-import CeeReceipts from "@/pages/CeeReceipts";
-import AttendanceShortageFine from "@/pages/AttendanceShortageFine";
-import Certificates from "@/pages/Certificates";
-import Supplementary from "@/pages/Supplementary";
-import HostelLeave from "@/pages/HostelLeave";
-import Idc from "@/pages/Idc";
-import ExamResults from "@/pages/ExamResults";
-import CiaResults from "@/pages/CiaResults";
-import AbsenceDetails from "@/pages/AbsenceDetails";
-import CocurricularLeave from "@/pages/CocurricularLeave";
-import PreviousAttendance from "@/pages/PreviousAttendance";
-import Uploads from "@/pages/Uploads";
-import Placement from "@/pages/Placement";
-import PlacementInternational from "@/pages/PlacementInternational";
-import Eduvistas from "@/pages/Eduvistas";
-import ReIssueIdCard from "@/pages/ReIssueIdCard";
-import Isrc from "@/pages/Isrc";
-import Profile from "@/pages/Profile";
-import Placeholder from "@/pages/Placeholder";
+import ConfettiHost from "@/components/ConfettiHost";
+import PageLoader from "@/components/PageLoader";
+
+// Every page is its own chunk, fetched on first visit instead of all ~35 screens shipping
+// in one bundle up front — see PageLoader for the Suspense fallback shown while a chunk loads.
+const Login = lazy(() => import("@/pages/Login"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Attendance = lazy(() => import("@/pages/Attendance"));
+const Fees = lazy(() => import("@/pages/Fees"));
+const Courses = lazy(() => import("@/pages/Courses"));
+const ObeList = lazy(() => import("@/pages/obe/ObeList"));
+const ObeResults = lazy(() => import("@/pages/obe/ObeResults"));
+const TimeTable = lazy(() => import("@/pages/TimeTable"));
+const ExamTimeTable = lazy(() => import("@/pages/ExamTimeTable"));
+const HallTickets = lazy(() => import("@/pages/HallTickets"));
+const OnlineApplications = lazy(() => import("@/pages/OnlineApplications"));
+const MiscPayments = lazy(() => import("@/pages/MiscPayments"));
+const Cee = lazy(() => import("@/pages/Cee"));
+const CeeReceipts = lazy(() => import("@/pages/CeeReceipts"));
+const AttendanceShortageFine = lazy(() => import("@/pages/AttendanceShortageFine"));
+const Certificates = lazy(() => import("@/pages/Certificates"));
+const Supplementary = lazy(() => import("@/pages/Supplementary"));
+const HostelLeave = lazy(() => import("@/pages/HostelLeave"));
+const Idc = lazy(() => import("@/pages/Idc"));
+const ExamResults = lazy(() => import("@/pages/ExamResults"));
+const CiaResults = lazy(() => import("@/pages/CiaResults"));
+const AbsenceDetails = lazy(() => import("@/pages/AbsenceDetails"));
+const CocurricularLeave = lazy(() => import("@/pages/CocurricularLeave"));
+const PreviousAttendance = lazy(() => import("@/pages/PreviousAttendance"));
+const Uploads = lazy(() => import("@/pages/Uploads"));
+const Placement = lazy(() => import("@/pages/Placement"));
+const PlacementInternational = lazy(() => import("@/pages/PlacementInternational"));
+const Eduvistas = lazy(() => import("@/pages/Eduvistas"));
+const ReIssueIdCard = lazy(() => import("@/pages/ReIssueIdCard"));
+const Isrc = lazy(() => import("@/pages/Isrc"));
+const Profile = lazy(() => import("@/pages/Profile"));
 
 export default function App() {
   return (
@@ -44,9 +49,11 @@ export default function App() {
       <Toaster />
       <ConfirmHost />
       <SessionExpiredModal />
+      <ConfettiHost />
       {/* Portal target for modals — sits at the app root so `position: fixed`
           isn't trapped by the page's framer-motion transform. */}
       <div id="modal-root" />
+      <Suspense fallback={<PageLoader fullScreen />}>
       <Routes>
         <Route path="/login" element={<Login />} />
 
@@ -71,7 +78,7 @@ export default function App() {
           <Route path="/timetable/exam" element={<ExamTimeTable />} />
 
           {/* Fee Payment */}
-          <Route path="/fees/online" element={<Fees />} />
+          <Route path="/fees/online" element={<Fees mode="current" />} />
           <Route path="/challan/print" element={<Fees />} />
           <Route path="/receipts" element={<Fees />} />
 
@@ -81,7 +88,7 @@ export default function App() {
           <Route path="/apply/hostel-leave" element={<HostelLeave />} />
           <Route path="/apply/cee" element={<Cee />} />
           <Route path="/apply/cee-receipts" element={<CeeReceipts />} />
-          <Route path="/apply/attendance-shortage-fine" element={<AttendanceShortageFine />} />
+          {/* <Route path="/apply/attendance-shortage-fine" element={<AttendanceShortageFine />} /> */}
           <Route path="/apply/certificates" element={<Certificates />} />
           <Route path="/apply/idc" element={<Idc />} />
           <Route path="/apply/misc-payments" element={<MiscPayments />} />
@@ -120,6 +127,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

@@ -1,11 +1,13 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
-import { Loader2, AlertTriangle, RefreshCw, CalendarDays, MapPin, Clock, Coffee, BookOpen } from "@/lib/icons";
+import { AlertTriangle, RefreshCw, CalendarDays, MapPin, Clock, Coffee, BookOpen } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 // theme-friendly accent palette — one tone per slot, cycled by index
@@ -131,23 +133,58 @@ export default function TimeTable() {
         <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /> Refresh</Button>
       </div>
 
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="flex h-48 items-center justify-center text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <div className="space-y-6">
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-16 rounded-2xl" />
+            ))}
+          </div>
+          <Card>
+            <CardContent className="p-5 sm:p-6">
+              <div className="mb-5 flex items-center gap-2">
+                <Skeleton className="h-9 w-9 rounded-xl" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+              </div>
+              <div className="space-y-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex gap-3 sm:gap-4">
+                    <div className="w-14 shrink-0 pt-2.5 sm:w-16">
+                      <Skeleton className="ml-auto h-4 w-10" />
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <Skeleton className="mt-2.5 h-3.5 w-3.5 shrink-0 rounded-full" />
+                    </div>
+                    <Skeleton className="mb-4 h-16 flex-1 rounded-2xl" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
+        </motion.div>
       ) : error ? (
+        <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
           <AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p>
           <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
+        </motion.div>
       ) : !hasData ? (
+        <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-16 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary"><CalendarDays className="h-7 w-7" /></span>
           <p className="font-display text-lg font-semibold">No time table found</p>
           <p className="max-w-sm text-sm text-muted-foreground">Your class time table hasn't been published yet.</p>
         </CardContent></Card>
+        </motion.div>
       ) : (
-        <>
+        <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
           {/* day selector */}
           <div className="flex flex-wrap gap-2">
             {days.map((d) => {
@@ -155,23 +192,32 @@ export default function TimeTable() {
               const isToday = d === todayName;
               const count = byDay[d]?.length || 0;
               return (
-                <button
+                <motion.button
                   key={d}
                   onClick={() => setActive(d)}
-                  className={`group relative flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all ${
-                    isActive ? "bg-joy text-white shadow-card" : "bg-muted text-muted-foreground hover:bg-muted/70"
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  className={`group relative flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-colors ${
+                    isActive ? "text-white" : "bg-muted text-muted-foreground hover:bg-muted/70"
                   }`}
                 >
-                  <span>{d.slice(0, 3)}</span>
-                  <span className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-bold ${
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeDayPill"
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      className="absolute inset-0 rounded-2xl bg-joy shadow-card"
+                    />
+                  )}
+                  <span className="relative z-10">{d.slice(0, 3)}</span>
+                  <span className={`relative z-10 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-bold ${
                     isActive ? "bg-white/25 text-white" : "bg-foreground/10 text-foreground/70"
                   }`}>{count}</span>
                   {isToday && (
-                    <span className={`absolute -top-1.5 -right-1 rounded-full px-1.5 py-px text-[9px] font-bold uppercase tracking-wide ${
+                    <span className={`z-10 absolute -top-1.5 -right-1 rounded-full px-1.5 py-px text-[9px] font-bold uppercase tracking-wide ${
                       isActive ? "bg-white text-[#7a1f1f]" : "bg-[#7a1f1f] text-white"
                     }`}>Today</span>
                   )}
-                </button>
+                </motion.button>
               );
             })}
           </div>
@@ -187,20 +233,30 @@ export default function TimeTable() {
                 </div>
               </div>
 
-              {list.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 py-12 text-center">
-                  <span className="grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground"><Coffee className="h-6 w-6" /></span>
-                  <p className="font-display text-base font-semibold">No classes</p>
-                  <p className="text-sm text-muted-foreground">Enjoy your free day.</p>
-                </div>
-              ) : (
-                // key={active} remounts on day change so the entrance animation replays
-                <DayTimeline key={active} list={list} />
-              )}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={active}
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {list.length === 0 ? (
+                    <div className="flex flex-col items-center gap-2 py-12 text-center">
+                      <span className="grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground"><Coffee className="h-6 w-6" /></span>
+                      <p className="font-display text-base font-semibold">No classes</p>
+                      <p className="text-sm text-muted-foreground">Enjoy your free day.</p>
+                    </div>
+                  ) : (
+                    <DayTimeline list={list} />
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </CardContent>
           </Card>
-        </>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

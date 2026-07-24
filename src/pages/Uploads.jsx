@@ -1,6 +1,7 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
 import {
   Loader2, AlertTriangle, RefreshCw, Upload, FileText, CheckCircle2, Clock, XCircle, UploadCloud,
@@ -9,6 +10,7 @@ import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 function sizeLabel(b) {
   if (!b) return "";
@@ -116,34 +118,51 @@ export default function Uploads() {
       </Card>
 
       {/* Uploaded list */}
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="flex h-40 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <SkeletonList rows={4} />
+        </motion.div>
       ) : error ? (
+        <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-12 text-center">
           <AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p>
           <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
+        </motion.div>
       ) : (
+        <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card>
           <CardHeader><CardTitle>My Documents</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            {(docs || []).length === 0 && <p className="py-4 text-sm text-muted-foreground">No documents uploaded yet.</p>}
-            {(docs || []).map((d) => (
-              <div key={d.id} className="flex items-center gap-3 rounded-2xl border border-border p-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary text-secondary-foreground"><FileText className="h-5 w-5" /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{d.docType || d.fileName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {d.fileName} {sizeLabel(d.fileSize) && `· ${sizeLabel(d.fileSize)}`} {d.uploadedDate && `· ${d.uploadedDate}`}
-                  </p>
-                  {d.status === "REJECTED" && d.rejectReason && <p className="text-xs text-destructive">Reason: {d.rejectReason}</p>}
-                </div>
-                <StatusBadge status={d.status} />
+          <CardContent className={(docs || []).length === 0 ? "" : "space-y-2"}>
+            {(docs || []).length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-12 text-center">
+                <span className="grid h-14 w-14 place-items-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-500/20">
+                  <FileText className="h-7 w-7" />
+                </span>
+                <p className="font-display text-lg font-semibold">No documents uploaded yet.</p>
+                <p className="max-w-sm text-sm text-muted-foreground">Upload a document above and it will appear here once submitted.</p>
               </div>
-            ))}
+            ) : (
+              (docs || []).map((d) => (
+                <div key={d.id} className="flex items-center gap-3 rounded-2xl border border-border p-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary text-secondary-foreground"><FileText className="h-5 w-5" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{d.docType || d.fileName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {d.fileName} {sizeLabel(d.fileSize) && `· ${sizeLabel(d.fileSize)}`} {d.uploadedDate && `· ${d.uploadedDate}`}
+                    </p>
+                    {d.status === "REJECTED" && d.rejectReason && <p className="text-xs text-destructive">Reason: {d.rejectReason}</p>}
+                  </div>
+                  <StatusBadge status={d.status} />
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

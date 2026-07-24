@@ -1,6 +1,6 @@
 // Developed By: Vishnukarthick K
 
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, GraduationCap, ShieldCheck, CalendarCheck, ArrowRight } from "@/lib/icons";
@@ -9,30 +9,13 @@ import CarmelNexusBrand from "@/components/CarmelNexusBrand";
 import PoweredByBadge from "@/components/PoweredByBadge";
 import api from "@/lib/api";
 import { saveSession } from "@/lib/auth";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import dayjs from "dayjs";
+import { ESPRESSO, BRONZE, BTN_GRAD, PANEL_GRAD, PAGE_GRAD, FONT_SERIF, FONT_SANS } from "./loginTheme";
+
+// The MUI date-picker + dayjs stack this dialog needs (~110 kB gzipped) is only fetched once a
+// student actually clicks "Forgot password?", instead of on every visit to the sign-in page.
+const ForgotPasswordDialog = lazy(() => import("./ForgotPasswordDialog"));
 
 const REMEMBER_KEY = "mcc_remember";
-
-// ── Warm beige palette ──────────────────────────────────────────────
-const ESPRESSO = "#4a3a2a";
-const BRONZE = "#8a6d4a";
-const BTN_GRAD = "linear-gradient(95deg, #5c4632 0%, #8a6d4a 60%, #a4855c 100%)";
-const PANEL_GRAD = "linear-gradient(155deg, #efe5d0 0%, #e4d4b6 52%, #d6c098 100%)";
-const PAGE_GRAD = "radial-gradient(125% 125% at 50% 0%, #faf5ea 0%, #f4ecdb 50%, #ece0cb 100%)";
-
-const FONT_SERIF = "'Playfair Display', Georgia, 'Times New Roman', serif";
-const FONT_SANS = "'Inter', 'Segoe UI', system-ui, sans-serif";
-
-// Beige MUI theme so the DatePicker matches the login palette.
-const muiBeige = createTheme({
-  palette: { primary: { main: BRONZE }, text: { primary: ESPRESSO, secondary: "#8a7458" } },
-  typography: { fontFamily: FONT_SANS },
-  shape: { borderRadius: 12 },
-});
 
 const FEATURES = [
   { icon: CalendarCheck, title: "Attendance & Results", text: "Track classes, CIA marks and semester results." },
@@ -102,7 +85,17 @@ export default function Login() {
       className="relative grid min-h-screen overflow-hidden lg:grid-cols-[1.05fr_1fr]"
       style={{ fontFamily: FONT_SANS, background: PAGE_GRAD, color: ESPRESSO }}
     >
-      {showForgot && <ForgotPasswordDialog onClose={() => setShowForgot(false)} />}
+      {showForgot && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#3a2c1e]/40 backdrop-blur-sm">
+              <Loader2 className="h-8 w-8 animate-spin text-[#fdf8ee]" />
+            </div>
+          }
+        >
+          <ForgotPasswordDialog onClose={() => setShowForgot(false)} />
+        </Suspense>
+      )}
 
       {/* page-wide ambient blobs */}
       <Blob className="-left-24 -top-24 h-96 w-96" color="radial-gradient(circle, rgba(212,191,152,0.55), transparent 70%)" />
@@ -291,14 +284,16 @@ export default function Login() {
                     required
                     className="w-full rounded-xl border border-[#e0d3ba] bg-[#fdfaf2] px-4 py-3 pr-12 text-[15px] outline-none transition focus:border-[#8a6d4a] focus:ring-4 focus:ring-[#8a6d4a]/15"
                   />
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => setShowPwd((s) => !s)}
+                    whileTap={{ scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
                     className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-[#a08861] hover:bg-[#f0e7d3] hover:text-[#5c4a36]"
                     aria-label={showPwd ? "Hide password" : "Show password"}
                   >
                     {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  </motion.button>
                 </div>
               </div>
 
@@ -313,14 +308,16 @@ export default function Login() {
                   />
                   Keep me signed in
                 </label>
-                <button
+                <motion.button
                   type="button"
                   onClick={() => setShowForgot(true)}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   className="text-sm font-semibold hover:underline"
                   style={{ color: BRONZE }}
                 >
                   Forgot password?
-                </button>
+                </motion.button>
               </div>
 
               <motion.button
@@ -350,137 +347,6 @@ export default function Login() {
           </p>
         </motion.div>
       </div>
-    </div>
-  );
-}
-
-// ── Forgot password: register number + date of birth → email username & password ──
-function ForgotPasswordDialog({ onClose }) {
-  const [registerNo, setRegisterNo] = useState("");
-  const [dob, setDob] = useState(null); // dayjs | null
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [done, setDone] = useState("");
-
-  async function submit(e) {
-    e.preventDefault();
-    setError("");
-    if (!registerNo.trim() || !dob || !dob.isValid()) {
-      setError("Please enter your register number and date of birth.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await api.post(
-        "/auth/forgot-password",
-        { registerNo: registerNo.trim(), dob: dob.format("YYYY-MM-DD") },
-        { skipErrorToast: true }
-      );
-      setDone(res.data?.message || "Your login details have been sent to your registered email.");
-    } catch (err) {
-      setError(err?.response?.data?.message || "Unable to process the request. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const inputCls =
-    "w-full rounded-xl border border-[#e0d3ba] bg-[#fdfaf2] px-4 py-3 text-[15px] outline-none transition focus:border-[#8a6d4a] focus:ring-4 focus:ring-[#8a6d4a]/15";
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-5 py-8" style={{ fontFamily: FONT_SANS }}>
-      <div className="absolute inset-0 bg-[#3a2c1e]/40 backdrop-blur-sm" onClick={onClose} />
-      <motion.div
-        initial={{ opacity: 0, y: 18, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-md rounded-[24px] border border-[#e6dac2] bg-[#fffdf7] p-7 sm:p-8"
-        style={{ boxShadow: "0 30px 80px -28px rgba(90,68,46,0.5)", color: ESPRESSO }}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-[#a08861] hover:bg-[#f0e7d3] hover:text-[#5c4a36]"
-          aria-label="Close"
-        >
-          ✕
-        </button>
-
-        {done ? (
-          <div className="text-center">
-            <span
-              className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl text-[#fdf8ee]"
-              style={{ background: "linear-gradient(135deg, #8a6d4a, #6b4f3a)" }}
-            >
-              <ShieldCheck className="h-7 w-7" />
-            </span>
-            <h3 className="text-xl font-bold" style={{ fontFamily: FONT_SERIF }}>Check your email</h3>
-            <p className="mt-2 text-sm" style={{ color: "#6b5840" }}>{done}</p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="mt-6 w-full rounded-xl py-3 text-[15px] font-semibold text-[#fdf8ee]"
-              style={{ backgroundImage: BTN_GRAD }}
-            >
-              Back to sign in
-            </button>
-          </div>
-        ) : (
-          <>
-            <h3 className="text-2xl font-bold" style={{ fontFamily: FONT_SERIF }}>Forgot password?</h3>
-            <p className="mt-1.5 text-sm" style={{ color: "#8a7458" }}>
-              Enter your register number and date of birth. We'll email your username and password to your registered email address.
-            </p>
-
-            {error && (
-              <div className="mt-5 rounded-xl border border-[#d9b3a0] bg-[#f7e9e2] px-4 py-3 text-sm font-medium text-[#8a3b22]">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={submit} className="mt-5 space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="fp-reg" className="text-sm font-semibold" style={{ color: "#5c4a36" }}>Register Number</label>
-                <input id="fp-reg" value={registerNo} onChange={(e) => setRegisterNo(e.target.value)}
-                  placeholder="e.g. M25MC67" autoComplete="off" className={inputCls} />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="fp-dob" className="text-sm font-semibold" style={{ color: "#5c4a36" }}>Date of Birth</label>
-                <ThemeProvider theme={muiBeige}>
-                  <LocalizationProvider dateAdapter={AdapterDayjs}>
-                    <DatePicker
-                      value={dob}
-                      onChange={(v) => setDob(v)}
-                      format="DD/MM/YYYY"
-                      maxDate={dayjs()}
-                      slotProps={{
-                        textField: {
-                          id: "fp-dob",
-                          fullWidth: true,
-                          placeholder: "DD/MM/YYYY",
-                          sx: {
-                            "& .MuiOutlinedInput-root": { backgroundColor: "#fdfaf2", borderRadius: "12px", fontSize: "15px" },
-                            "& .MuiOutlinedInput-input": { padding: "12px 16px" },
-                            "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e0d3ba" },
-                            "&:hover .MuiOutlinedInput-root:not(.Mui-focused) .MuiOutlinedInput-notchedOutline": { borderColor: "#8a6d4a" },
-                          },
-                        },
-                      }}
-                    />
-                  </LocalizationProvider>
-                </ThemeProvider>
-              </div>
-              <button type="submit" disabled={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-semibold text-[#fdf8ee] transition disabled:opacity-70"
-                style={{ backgroundImage: BTN_GRAD, boxShadow: "0 14px 30px -10px rgba(90,68,46,0.55)" }}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {loading ? "Sending…" : "Send my details"}
-                {!loading && <ArrowRight className="h-4 w-4" />}
-              </button>
-            </form>
-          </>
-        )}
-      </motion.div>
     </div>
   );
 }

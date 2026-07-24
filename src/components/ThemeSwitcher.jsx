@@ -1,6 +1,7 @@
 // Developed By: Vishnukarthick K
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { Palette, Check, ChevronDown } from "@/lib/icons";
 import {
   THEMES,
@@ -53,9 +54,11 @@ export default function ThemeSwitcher() {
           {THEMES.map((t) => {
             const isActive = t.id === active;
             return (
-              <button
+              <motion.button
                 key={t.id}
                 onClick={() => pickPreset(t.id)}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-muted ${
                   isActive ? "bg-muted font-semibold" : ""
                 }`}
@@ -66,13 +69,15 @@ export default function ThemeSwitcher() {
                 />
                 <span className="flex-1 text-left">{t.name}</span>
                 {isActive && <Check className="h-4 w-4 text-primary" />}
-              </button>
+              </motion.button>
             );
           })}
 
-          <button
+          <motion.button
             onClick={() => setShowCustom((s) => !s)}
             aria-expanded={showCustom}
+            whileTap={{ scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
             className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-muted ${
               active === "custom" ? "bg-muted font-semibold" : ""
             }`}
@@ -89,7 +94,7 @@ export default function ThemeSwitcher() {
             <span className="flex-1 text-left">Custom</span>
             {active === "custom" && <Check className="h-4 w-4 text-primary" />}
             <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showCustom ? "rotate-180" : ""}`} />
-          </button>
+          </motion.button>
         </div>
 
         {showCustom && (
@@ -100,12 +105,15 @@ export default function ThemeSwitcher() {
               {CUSTOM_COLORS.map((c) => {
                 const isActive = active === "custom" && customHue === c.hue;
                 return (
-                  <button
+                  <motion.button
                     key={c.name}
                     onClick={() => pickCustom(c.hue)}
                     title={c.name}
                     aria-label={c.name}
-                    className={`grid h-8 w-8 place-items-center rounded-full ring-1 ring-black/10 transition hover:scale-110 ${
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    className={`grid h-8 w-8 place-items-center rounded-full ring-1 ring-black/10 ${
                       isActive ? "ring-2 ring-offset-2 ring-offset-popover" : ""
                     }`}
                     style={{
@@ -114,7 +122,7 @@ export default function ThemeSwitcher() {
                     }}
                   >
                     {isActive && <Check className="h-4 w-4 text-white drop-shadow" />}
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>

@@ -1,6 +1,7 @@
 // Developed By: Vishnukarthick K
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, Loader2, KeyRound, CheckCircle2, ShieldCheck } from "@/lib/icons";
 import api from "@/lib/api";
 import { toast } from "@/lib/toast";
@@ -23,14 +24,16 @@ function PasswordField({ id, label, value, onChange }) {
           className="pr-11"
           required
         />
-        <button
+        <motion.button
           type="button"
           onClick={() => setShow((s) => !s)}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
           className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted"
           aria-label={show ? "Hide password" : "Show password"}
         >
           {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-        </button>
+        </motion.button>
       </div>
     </div>
   );
@@ -82,11 +85,20 @@ export default function ChangePassword() {
           </div>
         </CardHeader>
         <CardContent>
-          {done && (
-            <div className="mb-5 flex items-center gap-2 rounded-lg border border-success/30 bg-success/5 px-4 py-3 text-sm text-success">
-              <CheckCircle2 className="h-4 w-4" /> Password changed successfully.
-            </div>
-          )}
+          <AnimatePresence>
+            {done && (
+              <motion.div
+                key="success"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+                className="mb-5 flex items-center gap-2 rounded-lg border border-success/30 bg-success/5 px-4 py-3 text-sm text-success"
+              >
+                <CheckCircle2 className="h-4 w-4" /> Password changed successfully.
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <form onSubmit={submit} className="space-y-5">
             <PasswordField id="current" label="Current Password" value={current} onChange={(e) => setCurrent(e.target.value)} />

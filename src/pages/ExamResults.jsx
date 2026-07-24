@@ -1,10 +1,12 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
-import { Loader2, AlertTriangle, RefreshCw, Award, Printer, Trophy } from "@/lib/icons";
+import { AlertTriangle, RefreshCw, Award, Printer, Trophy, TrendingUp } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SkeletonTable } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { getStudent } from "@/lib/auth";
 import logo from "@/assets/images/mcc-title-brown.png";
@@ -30,6 +32,21 @@ export default function ExamResults() {
   }
   useEffect(load, []);
 
+  const gpaPoints = (exams || [])
+    .filter((ex) => ex.gpa != null)
+    .map((ex) => ({
+      key: ex.examId,
+      year: ex.year,
+      semester: ex.semester,
+      gpa: ex.gpa,
+      label: ex.semester != null ? `Sem ${ex.semester}` : (ex.examCode || `${ex.month || ""} ${ex.year || ""}`).trim().slice(0, 9),
+    }))
+    .sort((a, b) => {
+      const ka = (Number(a.year) || 0) * 100 + (Number(a.semester) || 0);
+      const kb = (Number(b.year) || 0) * 100 + (Number(b.semester) || 0);
+      return ka - kb;
+    });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
@@ -45,16 +62,23 @@ export default function ExamResults() {
         </div>
       </div>
 
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="flex h-48 items-center justify-center text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <div className="space-y-5">
+          <SkeletonTable rows={4} cols={7} />
+          <SkeletonTable rows={3} cols={7} />
         </div>
+        </motion.div>
       ) : error ? (
+        <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
           <AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p>
           <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
+        </motion.div>
       ) : (exams || []).length === 0 ? (
+        <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-16 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-500/20">
             <Award className="h-7 w-7" />
@@ -62,8 +86,21 @@ export default function ExamResults() {
           <p className="font-display text-lg font-semibold">No results published yet</p>
           <p className="max-w-sm text-sm text-muted-foreground">Your exam results will appear here once they are published.</p>
         </CardContent></Card>
+        </motion.div>
       ) : (
-        <>
+        <motion.div key="content" className="space-y-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+          {gpaPoints.length >= 2 && (
+            <Card className="print:hidden">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" /> GPA Trend
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <GpaTrendChart points={gpaPoints} />
+              </CardContent>
+            </Card>
+          )}
           <div className="space-y-5 print:hidden">
           {exams.map((ex) => (
             <Card key={ex.examId}>
@@ -102,7 +139,12 @@ export default function ExamResults() {
                             </td>
                             <td className="px-3 py-3 text-center tabular-nums">{num(s.internalMarks)}</td>
                             <td className="px-3 py-3 text-center tabular-nums">{num(s.externalMarks)}</td>
-                            <td className="px-3 py-3 text-center font-medium tabular-nums">{num(s.totalMarks)}</td>
+                            <td className="px-3 py-3 text-center font-medium tabular-nums">
+                              <div className="flex flex-col items-center gap-1">
+                                <span>{num(s.totalMarks)}</span>
+                                <MarksComposition internal={s.internalMarks} external={s.externalMarks} total={s.totalMarks} />
+                              </div>
+                            </td>
                             <td className="px-3 py-3 text-center font-bold text-primary">{s.grade || "-"}</td>
                             <td className="px-3 py-3 text-center tabular-nums">{num(s.gradePoint)}</td>
                             <td className="px-5 py-3 text-center">
@@ -121,9 +163,114 @@ export default function ExamResults() {
           ))}
           </div>
           <PrintMarksCard exams={exams} student={student} />
-        </>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+/* ── Compact GPA trend across exams — bar chart, CSS draw-in (mirrors Dashboard's AttendanceChart) ── */
+function GpaTrendChart({ points }) {
+  const [grown, setGrown] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setGrown(true), 80); return () => clearTimeout(t); }, []);
+
+  const W = 660, H = 220, padT = 30, padB = 40, padX = 16, padR = 28;
+  const plotH = H - padT - padB;
+  const MAX = 10;
+  const n = points.length || 1;
+  const slot = (W - padX - padR) / n;
+  const barW = Math.min(44, slot * 0.5);
+  const baseY = padT + plotH;
+  const yFor = (v) => padT + plotH * (1 - Math.min(v, MAX) / MAX);
+
+  const GRAD = {
+    green: ["#69a877", "#3f7a4b"],
+    amber: ["#dcb24a", "#a87c12"],
+    terra: ["#e88a63", "#c5552f"],
+  };
+  const SOLID = { green: "#3f7a4b", amber: "#a87c12", terra: "#c5552f" };
+  const tone = (v) => (v < 6 ? "terra" : v < 8 ? "amber" : "green");
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full text-muted-foreground" style={{ height: "auto" }}>
+      <defs>
+        {Object.entries(GRAD).map(([k, [a, b]]) => (
+          <linearGradient key={k} id={`gpa-bar-${k}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={a} />
+            <stop offset="100%" stopColor={b} />
+          </linearGradient>
+        ))}
+      </defs>
+
+      {/* gridlines */}
+      {[0, 2.5, 5, 7.5, 10].map((g) => {
+        const y = padT + plotH * (1 - g / MAX);
+        return (
+          <g key={g}>
+            <line x1={padX} x2={W - padR} y1={y} y2={y} stroke="currentColor" strokeOpacity="0.09" />
+            <text x={W - padR + 6} y={y + 3} fontSize="9" fill="currentColor" opacity="0.55">{g}</text>
+          </g>
+        );
+      })}
+
+      {/* bars + value pills */}
+      {points.map((p, i) => {
+        const v = Number(p.gpa) || 0;
+        const x = padX + slot * i + (slot - barW) / 2;
+        const cx = x + barW / 2;
+        const y = yFor(v), h = Math.max(baseY - y, 2);
+        const k = tone(v);
+        const label = String(p.gpa);
+        const pw = label.length * 7 + 11, ph = 18, py = y - ph - 7;
+        const delay = 0.08 + i * 0.07;
+        return (
+          <g key={p.key ?? i}>
+            <title>{p.label}: GPA {p.gpa}</title>
+            {/* faint full-height track */}
+            <rect x={x} y={padT} width={barW} height={baseY - padT} rx={9} fill="currentColor" opacity="0.05" />
+            {/* bar — CSS grow from the baseline */}
+            <rect
+              x={x} y={y} width={barW} height={h} rx={9} fill={`url(#gpa-bar-${k})`}
+              style={{
+                transformBox: "fill-box", transformOrigin: "bottom",
+                transform: grown ? "scaleY(1)" : "scaleY(0)",
+                transition: `transform 0.8s cubic-bezier(.22,1,.36,1) ${delay}s`,
+              }}
+            />
+            {/* value pill */}
+            <g style={{
+              opacity: grown ? 1 : 0, transform: grown ? "translateY(0)" : "translateY(6px)",
+              transition: `opacity .4s ease ${delay + 0.5}s, transform .4s ease ${delay + 0.5}s`,
+            }}>
+              <rect x={cx - pw / 2} y={py} width={pw} height={ph} rx={ph / 2}
+                fill="#fffaf3" stroke={SOLID[k]} strokeOpacity="0.4" strokeWidth="1" />
+              <text x={cx} y={py + ph / 2 + 3.6} textAnchor="middle" fontSize="10.5" fontWeight="800" fill={SOLID[k]}>{label}</text>
+            </g>
+            {/* exam label */}
+            <text x={cx} y={H - padB + 18} textAnchor="middle" fontSize="9.5" fill="currentColor" opacity="0.75">{p.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/* ── Tiny internal-vs-external composition indicator for a subject's Total cell ── */
+function MarksComposition({ internal, external, total }) {
+  if (internal == null || external == null || !total) return null;
+  const t = Number(total);
+  if (!t) return null;
+  const iPct = Math.max(0, Math.min(100, (Number(internal) / t) * 100));
+  const ePct = Math.max(0, 100 - iPct);
+  return (
+    <span
+      className="flex h-1.5 w-12 overflow-hidden rounded-full bg-muted"
+      title={`Internal ${internal} + External ${external} = ${total}`}
+    >
+      <span className="h-full bg-primary" style={{ width: `${iPct}%` }} />
+      <span className="h-full bg-primary/35" style={{ width: `${ePct}%` }} />
+    </span>
   );
 }
 
@@ -141,7 +288,7 @@ function PrintMarksCard({ exams, student }) {
     <div className="print-area" style={{ color: "#1a1208", fontFamily: "'Inter', Arial, sans-serif", fontSize: 12, padding: "2px 6px" }}>
       {/* letterhead */}
       <div style={{ textAlign: "center", borderBottom: "2.5px solid #800020", paddingBottom: 10, marginBottom: 16 }}>
-        <img src={logo} alt="Mount Carmel College" style={{ height: 58, margin: "0 auto 4px", display: "block" }} />
+        <img src={logo} alt="Mount Carmel (Deemed to be University)" style={{ height: 58, margin: "0 auto 4px", display: "block" }} />
         <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", color: "#800020" }}>
           Statement of Marks
         </div>
@@ -205,7 +352,7 @@ function PrintMarksCard({ exams, student }) {
       {/* footer */}
       <div style={{ marginTop: 30, display: "flex", justifyContent: "space-between", alignItems: "flex-end", fontSize: 10.5 }}>
         <div style={{ color: "#6b5840" }}>
-          Generated on {today}.<br />This is a computer-generated statement and does not require a signature.
+          Generated on {today}.<br />This receipt was generated automatically. Please check all the details carefully because accidental errors may occur.
         </div>
         <div style={{ textAlign: "center" }}>
           <div style={{ borderTop: "1px solid #1a1208", width: 170, paddingTop: 4, fontWeight: 600 }}>Controller of Examinations</div>

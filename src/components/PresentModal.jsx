@@ -25,16 +25,19 @@ export default function PresentModal({ subject, onClose }) {
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}
       />
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="present-modal-title"
         className="relative max-h-[82vh] w-full max-w-lg overflow-hidden rounded-3xl border border-border bg-card shadow-pop"
         initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 320, damping: 26 }}
       >
         <div className="flex items-start justify-between gap-3 border-b border-border bg-emerald-600 p-5 text-white">
           <div>
-            <h3 className="font-display text-lg font-bold">Present Details</h3>
+            <h3 id="present-modal-title" className="font-display text-lg font-bold">Present Details</h3>
             <p className="text-sm text-white/80">{subject.subjectName} · {subject.subjectCode}</p>
           </div>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-white/80 hover:bg-white/15"><X className="h-4 w-4" /></button>
+          <motion.button onClick={onClose} aria-label="Close" whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="grid h-8 w-8 place-items-center rounded-lg text-white/80 hover:bg-white/15"><X className="h-4 w-4" /></motion.button>
         </div>
         <div className="max-h-[62vh] overflow-y-auto p-0">
           {rows === null ? (

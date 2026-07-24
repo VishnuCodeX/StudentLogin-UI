@@ -1,6 +1,7 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
 import {
   Loader2, AlertTriangle, RefreshCw, Award, FileText, UploadCloud, Trash2, MapPin, Truck,
@@ -10,8 +11,10 @@ import {
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { goToGateway, handlePaymentReturn } from "@/lib/payments";
+import { confirm } from "@/lib/confirm";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SkeletonGrid } from "@/components/ui/skeleton";
 
 const POSTING_FEE = 500;
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -53,31 +56,41 @@ export default function Certificates() {
 
       <div className="flex gap-2">
         {[["apply", "Apply", Award], ["requests", "My Requests", Receipt]].map(([id, label, Icon]) => (
-          <button key={id} onClick={() => setTab(id)}
-            className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${
+          <motion.button key={id} onClick={() => setTab(id)}
+            whileTap={{ scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
               tab === id ? "bg-joy text-white" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
             <Icon className="h-4 w-4" /> {label}
             {id === "requests" && requests?.length ? (
               <span className="ml-0.5 rounded-full bg-white/25 px-1.5 text-xs">{requests.length}</span>
             ) : null}
-          </button>
+          </motion.button>
         ))}
       </div>
 
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="flex h-48 items-center justify-center text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
-        </div>
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <SkeletonGrid items={6} />
+        </motion.div>
       ) : error ? (
+        <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
           <AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p>
           <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
+        </motion.div>
       ) : tab === "apply" ? (
+        <motion.div key="apply" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <ApplyFlow types={types || []} onDone={() => { reloadRequests(); setTab("requests"); }} />
+        </motion.div>
       ) : (
+        <motion.div key="requests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <RequestsList requests={requests || []} onChanged={reloadRequests} />
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -141,7 +154,13 @@ function ApplyFlow({ types, onDone }) {
       // Start the Kotak payment for the just-created request; if the gateway isn't configured,
       // goToGateway shows a notice and we drop the student on My Requests.
       const pay = await unwrap(api.post(`/certificates/${res.requestId}/pay`, {}, { skipErrorToast: true })).catch(() => null);
-      if (!goToGateway(pay)) onDone();
+      const ok = await confirm({
+        title: "Confirm payment",
+        message: `Proceed to pay ${money(total)} for ${cert.name}?`,
+        confirmText: "Proceed",
+        cancelText: "Cancel",
+      });
+      if (!ok || !goToGateway(pay)) onDone();
     } catch {
       /* global error toast */
     } finally {
@@ -160,8 +179,11 @@ function ApplyFlow({ types, onDone }) {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {types.map((c) => (
-              <button key={c.id} onClick={() => pickCert(c)}
-                className="group flex flex-col rounded-3xl border border-border bg-card p-5 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-card">
+              <motion.button key={c.id} onClick={() => pickCert(c)}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                className="group flex flex-col rounded-3xl border border-border bg-card p-5 text-left shadow-soft transition-[color,background-color,border-color,box-shadow,filter] hover:border-primary/40 hover:shadow-card">
                 <span className="bg-joy grid h-11 w-11 place-items-center rounded-2xl text-white"><FileText className="h-5 w-5" /></span>
                 <p className="mt-3 font-display text-base font-bold leading-tight">{c.name}</p>
                 {c.description && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{c.description}</p>}
@@ -173,7 +195,7 @@ function ApplyFlow({ types, onDone }) {
                     {c.marksCard && <Tag tone="muted">Office only</Tag>}
                   </span>
                 </div>
-              </button>
+              </motion.button>
             ))}
           </div>
         )
@@ -195,18 +217,20 @@ function ApplyFlow({ types, onDone }) {
             <div>
               <label className="mb-1.5 block text-sm font-semibold">Supporting documents <span className="text-destructive">*</span>
                 <span className="ml-1 font-normal text-muted-foreground">(PDF or image, up to 10)</span></label>
-              <button type="button" onClick={() => fileRef.current?.click()}
-                className="flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-border py-8 text-muted-foreground transition hover:border-primary hover:text-primary">
+              <motion.button type="button" onClick={() => fileRef.current?.click()}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                className="flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-border py-8 text-muted-foreground transition-colors hover:border-primary hover:text-primary">
                 <UploadCloud className="h-7 w-7" />
                 <span className="text-sm font-medium">Click to upload files</span>
-              </button>
+              </motion.button>
               <input ref={fileRef} type="file" multiple accept=".pdf,image/*" hidden onChange={(e) => addFiles(e.target.files)} />
               {files.length > 0 && (
                 <ul className="mt-3 space-y-1.5">
                   {files.map((f, i) => (
                     <li key={i} className="flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-2 text-sm">
                       <span className="flex min-w-0 items-center gap-2"><FileText className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{f.name}</span></span>
-                      <button onClick={() => setFiles(files.filter((_, j) => j !== i))} className="shrink-0 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+                      <motion.button onClick={() => setFiles(files.filter((_, j) => j !== i))} aria-label={`Remove ${f.name}`} whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="shrink-0 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></motion.button>
                     </li>
                   ))}
                 </ul>
@@ -294,7 +318,13 @@ function RequestCard({ r, onChanged }) {
     setBusy(true);
     try {
       const res = await unwrap(api.post(`/certificates/${r.id}/pay`, {}, { skipErrorToast: true }));
-      if (!goToGateway(res)) onChanged();
+      const ok = await confirm({
+        title: "Confirm payment",
+        message: `Proceed to pay ${money(r.totalAmount)} for ${r.certificateName}?`,
+        confirmText: "Proceed",
+        cancelText: "Cancel",
+      });
+      if (!ok || !goToGateway(res)) onChanged();
     } catch {
       /* global toast */
     } finally { setBusy(false); }
@@ -365,7 +395,14 @@ function StepBar({ step }) {
             {i < step ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
           </span>
           <span className={`hidden text-xs font-semibold sm:block ${i === step ? "text-foreground" : "text-muted-foreground"}`}>{s}</span>
-          {i < STEPS.length - 1 && <span className={`h-0.5 flex-1 rounded ${i < step ? "bg-joy" : "bg-border"}`} />}
+          {i < STEPS.length - 1 && (
+            <span className="relative h-0.5 flex-1 overflow-hidden rounded bg-border">
+              <span
+                className="absolute inset-y-0 left-0 rounded bg-joy transition-[width] duration-500 ease-out"
+                style={{ width: i < step ? "100%" : "0%" }}
+              />
+            </span>
+          )}
         </div>
       ))}
     </div>
@@ -418,14 +455,17 @@ function SelectedHeader({ cert }) {
 
 function ModeCard({ icon: Icon, title, sub, note, active, onClick }) {
   return (
-    <button type="button" onClick={onClick}
-      className={`flex flex-col items-start gap-1 rounded-2xl border-2 p-4 text-left transition ${
+    <motion.button type="button" onClick={onClick}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      className={`flex flex-col items-start gap-1 rounded-2xl border-2 p-4 text-left transition-colors ${
         active ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
       <span className={`grid h-10 w-10 place-items-center rounded-xl ${active ? "bg-joy text-white" : "bg-muted text-muted-foreground"}`}><Icon className="h-5 w-5" /></span>
       <p className="mt-1 font-semibold">{title}</p>
       <p className="text-xs text-muted-foreground">{sub}</p>
       <span className={`mt-1 rounded-full px-2 py-0.5 text-xs font-bold ${active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>{note}</span>
-    </button>
+    </motion.button>
   );
 }
 

@@ -1,10 +1,12 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
-import { Loader2, AlertTriangle, RefreshCw, History } from "@/lib/icons";
+import { AlertTriangle, RefreshCw, History } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton, SkeletonTable } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import AbsenceModal from "@/components/AbsenceModal";
 import PresentModal from "@/components/PresentModal";
@@ -65,23 +67,31 @@ export default function PreviousAttendance() {
         <Button variant="outline" size="sm" onClick={loadClasses}><RefreshCw className="h-4 w-4" /> Refresh</Button>
       </div>
 
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="flex h-48 items-center justify-center text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-48" />
+          <SkeletonTable rows={5} cols={6} />
         </div>
+        </motion.div>
       ) : error ? (
+        <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
           <AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p>
           <Button variant="outline" onClick={loadClasses}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
+        </motion.div>
       ) : (classes || []).length === 0 ? (
+        <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-16 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary"><History className="h-7 w-7" /></span>
           <p className="font-display text-lg font-semibold">No previous classes</p>
           <p className="max-w-sm text-sm text-muted-foreground">Your earlier class attendance will appear here once you move to a higher semester.</p>
         </CardContent></Card>
+        </motion.div>
       ) : (
-        <>
+        <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
           <div className="flex flex-wrap items-center gap-3">
             <label className="text-sm font-semibold text-foreground/80">Class</label>
             <select value={classId} onChange={onPick}
@@ -91,7 +101,7 @@ export default function PreviousAttendance() {
           </div>
 
           {loadingRows ? (
-            <div className="flex h-32 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>
+            <SkeletonTable rows={5} cols={6} />
           ) : (rows || []).length === 0 ? (
             <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">No attendance recorded for this class.</CardContent></Card>
           ) : (
@@ -120,14 +130,14 @@ export default function PreviousAttendance() {
                           <td className="px-3 py-3 text-center tabular-nums">{r.conducted}</td>
                           <td className="px-3 py-3 text-center">
                             {r.present > 0 && r.subjectId ? (
-                              <button onClick={() => setPresentPopup(r)} className="font-bold text-[#3f7a4b] underline decoration-dotted underline-offset-2 hover:opacity-80 tabular-nums">{r.present}</button>
+                              <motion.button onClick={() => setPresentPopup(r)} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="font-bold text-[#3f7a4b] underline decoration-dotted underline-offset-2 hover:opacity-80 tabular-nums">{r.present}</motion.button>
                             ) : (
                               <span className="tabular-nums text-[#3f7a4b]">{r.present}</span>
                             )}
                           </td>
                           <td className="px-3 py-3 text-center">
                             {r.absent > 0 && r.subjectId ? (
-                              <button onClick={() => setPopup(r)} className="font-bold text-[#c5552f] underline decoration-dotted underline-offset-2 hover:opacity-80 tabular-nums">{r.absent}</button>
+                              <motion.button onClick={() => setPopup(r)} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="font-bold text-[#c5552f] underline decoration-dotted underline-offset-2 hover:opacity-80 tabular-nums">{r.absent}</motion.button>
                             ) : (
                               <span className="tabular-nums text-[#c5552f]">{r.absent}</span>
                             )}
@@ -156,8 +166,9 @@ export default function PreviousAttendance() {
               Click a <b>Present</b> or <b>Absent</b> count to see the dates, periods &amp; teacher for that subject.
             </p>
           )}
-        </>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {popup && <AbsenceModal subject={{ subjectId: popup.subjectId, subjectName: popup.subjectName, subjectCode: popup.subjectCode }} onClose={() => setPopup(null)} />}
       {presentPopup && <PresentModal subject={{ subjectId: presentPopup.subjectId, subjectName: presentPopup.subjectName, subjectCode: presentPopup.subjectCode }} onClose={() => setPresentPopup(null)} />}

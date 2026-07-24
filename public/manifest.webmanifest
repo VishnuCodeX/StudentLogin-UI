@@ -1,0 +1,13 @@
+{
+  "name": "Carmel Nexus — Student Portal",
+  "short_name": "Carmel Nexus",
+  "description": "Mount Carmel University's student portal — attendance, results, fees, time table and applications in one place.",
+  "theme_color": "#800020",
+  "background_color": "#800020",
+  "display": "standalone",
+  "start_url": "/CarmelNexus/",
+  "scope": "/CarmelNexus/",
+  "icons": [
+    { "src": "/CarmelNexus/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

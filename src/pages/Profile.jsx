@@ -1,6 +1,7 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangle,
   Loader2,
@@ -16,6 +17,7 @@ import {
 import api, { unwrap } from "@/lib/api";
 import { setStudent, getAvatar, setAvatar as persistAvatar } from "@/lib/auth";
 import { toast } from "@/lib/toast";
+import { SkeletonCard } from "@/components/ui/skeleton";
 
 // Resize an image file to a square ~256px JPEG data URL (keeps localStorage small).
 function resizeImage(file, size = 256) {
@@ -61,20 +63,27 @@ const EDITABLE = [
   { key: "bloodGroup", label: "Blood Group" },
   { key: "aadhaarNo", label: "Aadhaar No" },
   { key: "abcId", label: "ABC ID" },
-  { key: "address", label: "Address", full: true },
-  { key: "guardianName", label: "Guardian Name" },
-  { key: "guardianPhone", label: "Guardian Mobile", type: "tel" },
 ];
 
 const READONLY = [
   { key: "rollNo", label: "Roll No" },
   { key: "programme", label: "Programme" },
-  { key: "department", label: "Department" },
   { key: "semester", label: "Semester" },
   { key: "section", label: "Section" },
   { key: "academicYear", label: "Academic Year" },
   { key: "gender", label: "Gender" },
   { key: "dateOfBirth", label: "Date of Birth" },
+];
+
+// Additional academic-record details the backend already returns on GET /profile but the page
+// never surfaced — read-only (official record fields, not student-editable).
+const ADDITIONAL = [
+  { key: "admissionNo", label: "Admission No" },
+  { key: "seatNo", label: "Seat No" },
+  { key: "programType", label: "Programme Type" },
+  { key: "universityEmail", label: "University Email" },
+  { key: "fatherName", label: "Father's Name" },
+  { key: "motherName", label: "Mother's Name" },
 ];
 
 export default function Profile() {
@@ -195,8 +204,11 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading profile…
+      <div className="space-y-6">
+        <SkeletonCard lines={3} />
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={5} />
       </div>
     );
   }
@@ -223,11 +235,20 @@ export default function Profile() {
     <div className="space-y-6">
       <h1 className="font-display text-2xl font-bold">My Profile</h1>
 
-      {saved && (
-        <div className="flex items-center gap-2 rounded-2xl border border-success/30 bg-success/5 px-4 py-3 text-sm text-success">
-          <CheckCircle2 className="h-4 w-4" /> Profile updated successfully.
-        </div>
-      )}
+      <AnimatePresence>
+        {saved && (
+          <motion.div
+            key="success"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center gap-2 rounded-2xl border border-success/30 bg-success/5 px-4 py-3 text-sm text-success"
+          >
+            <CheckCircle2 className="h-4 w-4" /> Profile updated successfully.
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Header card */}
       <Card>
@@ -245,16 +266,18 @@ export default function Profile() {
               </div>
             )}
             {/* camera button */}
-            <button
+            <motion.button
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="absolute -bottom-1.5 -right-1.5 grid h-9 w-9 place-items-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow-md transition hover:opacity-90 disabled:opacity-70"
+              whileTap={{ scale: 0.9 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              className="absolute -bottom-1.5 -right-1.5 grid h-9 w-9 place-items-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow-md transition-opacity hover:opacity-90 disabled:opacity-70"
               aria-label="Change profile picture"
               title="Change profile picture"
             >
               {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-            </button>
+            </motion.button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickPhoto} />
           </div>
 
@@ -286,6 +309,21 @@ export default function Profile() {
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
           {READONLY.map((f) => (
+            <div key={f.key}>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{f.label}</p>
+              <p className="font-medium">{data[f.key] || "-"}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Additional details (read-only) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Additional Details</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
+          {ADDITIONAL.map((f) => (
             <div key={f.key}>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{f.label}</p>
               <p className="font-medium">{data[f.key] || "-"}</p>

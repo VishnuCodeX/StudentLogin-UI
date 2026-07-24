@@ -50,20 +50,24 @@ export default function ConfirmHost() {
             {state.message && <p className="mt-1.5 text-sm text-muted-foreground">{state.message}</p>}
 
             <div className="mt-6 flex gap-3">
-              <button
+              <motion.button
                 onClick={() => close(false)}
-                className="flex-1 rounded-xl border border-border bg-background py-2.5 text-sm font-semibold transition hover:bg-muted"
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                className="flex-1 rounded-xl border border-border bg-background py-2.5 text-sm font-semibold transition-colors hover:bg-muted"
               >
                 {state.cancelText || "Cancel"}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={() => close(true)}
-                className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition hover:opacity-90 ${
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors hover:opacity-90 ${
                   danger ? "bg-destructive" : "bg-primary"
                 }`}
               >
                 {state.confirmText || "Confirm"}
-              </button>
+              </motion.button>
             </div>
           </motion.div>
         </motion.div>

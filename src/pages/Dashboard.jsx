@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ClipboardCheck, Award, Receipt, Ticket, CalendarDays, BookOpen, FileText, CreditCard,
-  Bell, Loader2, TrendingUp, GraduationCap, ArrowUpRight, CheckCircle2, AlertTriangle,
-  Layers, Megaphone, Sparkles,
+  Bell, TrendingUp, GraduationCap, ArrowUpRight, CheckCircle2, AlertTriangle,
+  Layers, Megaphone, Sparkles, Info, ListChecks, Wallet, Home,
 } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { getStudent } from "@/lib/auth";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Stagger, Item } from "@/components/motion";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const QUICK = [
   { to: "/attendanceDetails", label: "Attendance", icon: ClipboardCheck },
@@ -29,13 +30,40 @@ function tone(pct) {
   return { ring: "#4f8a5b", text: "text-[#3f7a4b]", soft: "bg-[#e6f0e6]" };
 }
 
+// Eases a numeric value up from 0 on mount/change — shared by Ring and StatCard so every
+// KPI number on the dashboard animates in in the same way instead of just popping in.
+function useCountUp(target, duration = 1000) {
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    const startTime = performance.now();
+    let rafId;
+
+    const step = (now) => {
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(Math.round(eased * target));
+      if (t < 1) {
+        rafId = requestAnimationFrame(step);
+      }
+    };
+
+    rafId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafId);
+  }, [target, duration]);
+
+  return display;
+}
+
 function Ring({ value = 0, size = 132, stroke = 12, color = "#8a6d4a", track = "#ece0cb" }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const offset = c - (Math.min(value, 100) / 100) * c;
+  const displayValue = useCountUp(value);
+
   return (
-    <div className="relative grid place-items-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
+    <div className="relative grid place-items-center" style={{ width: size, height: size, maxWidth: "100%" }}>
+      <svg width={size} height={size} className="-rotate-90" style={{ maxWidth: "100%", height: "auto" }}>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
         <circle
           cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
@@ -44,7 +72,7 @@ function Ring({ value = 0, size = 132, stroke = 12, color = "#8a6d4a", track = "
         />
       </svg>
       <div className="absolute text-center">
-        <p className="font-display text-2xl font-bold leading-none">{value}%</p>
+        <p className="font-display text-2xl font-bold leading-none">{displayValue}%</p>
         <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Overall</p>
       </div>
     </div>
@@ -150,7 +178,10 @@ function AttendanceChart({ subjects }) {
   );
 }
 
-function StatCard({ icon: Icon, label, value, hint, hintTone }) {
+function StatCard({ icon: Icon, label, value, suffix = "", hint, hintTone }) {
+  const isNumeric = typeof value === "number";
+  const displayValue = useCountUp(isNumeric ? value : 0);
+
   return (
     <div className="group rounded-3xl border border-border bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-card">
       <div className="flex items-start justify-between">
@@ -163,7 +194,9 @@ function StatCard({ icon: Icon, label, value, hint, hintTone }) {
           </span>
         )}
       </div>
-      <p className="mt-4 font-display text-3xl font-bold leading-none">{value}</p>
+      <p className="mt-4 font-display text-3xl font-bold leading-none">
+        {isNumeric ? `${displayValue}${suffix}` : value}
+      </p>
       <p className="mt-1.5 text-sm text-muted-foreground">{label}</p>
     </div>
   );
@@ -188,6 +221,39 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
+  const [pending, setPending] = useState({ misc: [], idc: [], hostel: [] });
+  const [pendingLoading, setPendingLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.allSettled([
+      unwrap(api.get("/misc-payments", { skipErrorToast: true })),
+      unwrap(api.get("/idc/applications", { skipErrorToast: true })),
+      unwrap(api.get("/hostel-leave", { skipErrorToast: true })),
+    ])
+      .then(([misc, idc, hostel]) => {
+        const miscItems = misc.status === "fulfilled" ? (misc.value || []).filter((l) => !l.paid) : [];
+        const idcItems = idc.status === "fulfilled" ? (idc.value || []).filter((a) => /pend/i.test(a.status || "")) : [];
+        const hostelItems = hostel.status === "fulfilled" ? (hostel.value?.leaves || []).filter((l) => l.status === "Pending") : [];
+        setPending({ misc: miscItems, idc: idcItems, hostel: hostelItems });
+      })
+      .finally(() => setPendingLoading(false));
+  }, []);
+
+  const pendingItems = [
+    ...pending.misc.map((l) => ({
+      key: `misc-${l.id}`, icon: Wallet, to: "/apply/misc-payments",
+      text: `Misc Payment: ${l.name} — ₹${l.amount} due`,
+    })),
+    ...pending.idc.map((a) => ({
+      key: `idc-${a.id}`, icon: GraduationCap, to: "/apply/idc",
+      text: a.courseName ? `IDC application pending payment: ${a.courseName}` : "IDC application pending payment",
+    })),
+    ...pending.hostel.map((l) => ({
+      key: `hostel-${l.id}`, icon: Home, to: "/apply/hostel-leave",
+      text: l.leaveType ? `Hostel leave request pending approval: ${l.leaveType}` : "Hostel leave request pending approval",
+    })),
+  ].slice(0, 5);
+
   const rawName = data?.studentName || stored?.firstName || "Student";
   const titleCase = (s) =>
     s.toLowerCase().replace(/\b([a-z])/g, (m) => m.toUpperCase());
@@ -198,7 +264,9 @@ export default function Dashboard() {
   const subjects = att?.subjects || [];
   const notifications = data?.notifications || [];
   const overall = att?.overallPercentageWithoutLeave ?? 0;
-  const t = tone(overall);
+  const [withLeave, setWithLeave] = useState(false);
+  const ringValue = withLeave ? att?.overallPercentageWithLeave ?? 0 : overall;
+  const t = tone(ringValue);
   const shortage = att?.shortage;
   const today = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 
@@ -235,7 +303,32 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex items-center gap-5">
-              {!loading && att && <Ring value={overall} color={t.ring} />}
+              {!loading && att && (
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="flex items-center gap-0.5 rounded-full bg-muted p-0.5 text-[10px] font-bold">
+                    <motion.button
+                      onClick={() => setWithLeave(false)}
+                      whileTap={{ scale: 0.95 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      className={`rounded-full px-2.5 py-1 transition-colors ${!withLeave ? "bg-joy text-white shadow-card" : "text-muted-foreground hover:bg-background/60"}`}
+                    >
+                      Excl. leave
+                    </motion.button>
+                    <motion.button
+                      onClick={() => setWithLeave(true)}
+                      whileTap={{ scale: 0.95 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      className={`rounded-full px-2.5 py-1 transition-colors ${withLeave ? "bg-joy text-white shadow-card" : "text-muted-foreground hover:bg-background/60"}`}
+                    >
+                      Incl. leave
+                    </motion.button>
+                  </div>
+                  <Ring value={ringValue} color={t.ring} />
+                  <p className="max-w-[9.5rem] text-center text-[10.5px] leading-snug text-muted-foreground">
+                    {att.totalPresent} present · {att.totalAbsent} absent · {att.totalLeave} on leave of {att.totalConducted}
+                  </p>
+                </div>
+              )}
               <Link
                 to="/attendanceDetails"
                 className="hidden items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-90 lg:inline-flex"
@@ -251,7 +344,7 @@ export default function Dashboard() {
       <Item>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
-            icon={TrendingUp} label="Overall attendance" value={att ? `${overall}%` : "—"}
+            icon={TrendingUp} label="Overall attendance" value={att ? overall : "—"} suffix="%"
             hint={att ? (shortage ? "Below 75%" : "On track") : null}
             hintTone={att ? (shortage ? "bg-[#f7e7df] text-[#c5552f]" : "bg-[#e6f0e6] text-[#3f7a4b]") : null}
           />
@@ -268,72 +361,161 @@ export default function Dashboard() {
         </div>
       </Item>
 
-      {loading ? (
-        <div className="flex h-40 items-center justify-center text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading your dashboard…
-        </div>
-      ) : (
-        <Item className="grid gap-5 lg:grid-cols-3">
-          {/* Attendance overview */}
-          <div className="rounded-3xl border border-border bg-card p-6 shadow-soft lg:col-span-2">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <h2 className="font-display text-lg font-bold">Attendance overview</h2>
-                <p className="text-sm text-muted-foreground">Subject-wise this semester</p>
-              </div>
-              <Link to="/attendanceDetails" className="text-sm font-semibold text-primary hover:underline">View all</Link>
-            </div>
-
-            {subjects.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">No attendance recorded yet.</p>
+      {/* Item always renders (never conditionally swapped) so its Stagger-inherited entrance
+          plays once on mount — only the inner content of each card crossfades on `loading`. */}
+      <Item className="grid gap-5 lg:grid-cols-3">
+        {/* Attendance overview */}
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-soft lg:col-span-2">
+          <AnimatePresence mode="wait">
+            {loading ? (
+              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                <div className="mb-5 flex items-center justify-between">
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-48" />
+                    <Skeleton className="h-3 w-36" />
+                  </div>
+                  <Skeleton className="h-4 w-16" />
+                </div>
+                <div className="flex h-[220px] items-end justify-between gap-3 px-2">
+                  {[62, 88, 45, 75, 95, 58, 80, 68].map((h, i) => (
+                    <Skeleton key={i} className="w-full rounded-t-lg" style={{ height: `${h}%` }} />
+                  ))}
+                </div>
+              </motion.div>
             ) : (
-              <AttendanceChart subjects={subjects} />
+              <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <h2 className="font-display text-lg font-bold">Attendance overview</h2>
+                    <p className="text-sm text-muted-foreground">Subject-wise this semester</p>
+                  </div>
+                  <Link to="/attendanceDetails" className="text-sm font-semibold text-primary hover:underline">View all</Link>
+                </div>
+
+                {subjects.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-8 text-center">
+                    <Info className="h-8 w-8 text-primary" />
+                    <p className="text-sm text-muted-foreground">No attendance recorded yet.</p>
+                  </div>
+                ) : (
+                  <AttendanceChart subjects={subjects} />
+                )}
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
+        </div>
 
-          {/* Notifications */}
-          <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
-            <div className="mb-5 flex items-center gap-2">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary">
-                <Bell className="h-4.5 w-4.5" />
-              </span>
-              <h2 className="font-display text-lg font-bold">Notifications</h2>
-            </div>
-            {notifications.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-8 text-center">
-                <CheckCircle2 className="h-8 w-8 text-[#4f8a5b]" />
-                <p className="text-sm text-muted-foreground">You're all caught up.</p>
-              </div>
+        {/* Notifications */}
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+          <AnimatePresence mode="wait">
+            {loading ? (
+              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                <div className="mb-5 flex items-center gap-2">
+                  <Skeleton className="h-9 w-9 rounded-xl" />
+                  <Skeleton className="h-5 w-32" />
+                </div>
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 p-3">
+                      <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
             ) : (
-              <div className="space-y-3">
-                {notifications.map((n) => (
-                  <div key={n.id} className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 p-3">
-                    <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                      <Megaphone className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="text-sm leading-snug">{n.description}</span>
+              <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                <div className="mb-5 flex items-center gap-2">
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <Bell className="h-4.5 w-4.5" />
+                  </span>
+                  <h2 className="font-display text-lg font-bold">Notifications</h2>
+                </div>
+                {notifications.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-8 text-center">
+                    <CheckCircle2 className="h-8 w-8 text-[#4f8a5b]" />
+                    <p className="text-sm text-muted-foreground">You're all caught up.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {notifications.map((n) => (
+                      <div key={n.id} className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 p-3">
+                        <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                          <Megaphone className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="text-sm leading-snug">{n.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </Item>
+
+      {/* ── Pending Actions ── */}
+      <Item>
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+          <div className="mb-5 flex items-center gap-2">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300">
+              <ListChecks className="h-4.5 w-4.5" />
+            </span>
+            <h2 className="font-display text-lg font-bold">Pending Actions</h2>
+          </div>
+          <AnimatePresence mode="wait">
+            {pendingLoading ? (
+              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3">
+                    <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
+                    <Skeleton className="h-4 w-full" />
                   </div>
                 ))}
-              </div>
+              </motion.div>
+            ) : pendingItems.length === 0 ? (
+              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="flex flex-col items-center gap-2 py-8 text-center">
+                <CheckCircle2 className="h-8 w-8 text-[#4f8a5b]" />
+                <p className="text-sm text-muted-foreground">Nothing pending — you're all set.</p>
+              </motion.div>
+            ) : (
+              <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="space-y-3">
+                {pendingItems.map((it) => (
+                  <Link
+                    key={it.key}
+                    to={it.to}
+                    className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3 transition hover:border-primary/40 hover:bg-muted/60"
+                  >
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                      <it.icon className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="flex-1 text-sm leading-snug">{it.text}</span>
+                    <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                ))}
+              </motion.div>
             )}
-          </div>
-        </Item>
-      )}
+          </AnimatePresence>
+        </div>
+      </Item>
 
       {/* ── Quick actions ── */}
       <Item>
         <h2 className="mb-3 font-display text-lg font-bold">Quick access</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {QUICK.map((q) => (
-            <Link
-              key={q.to}
-              to={q.to}
-              className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-card"
-            >
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                <q.icon className="h-5 w-5" />
-              </span>
-              <span className="text-sm font-semibold">{q.label}</span>
+            <Link key={q.to} to={q.to}>
+              <motion.div
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft transition-[color,background-color,border-color,box-shadow,filter] hover:border-primary/40 hover:shadow-card"
+              >
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                  <q.icon className="h-5 w-5" />
+                </span>
+                <span className="truncate text-sm font-semibold">{q.label}</span>
+              </motion.div>
             </Link>
           ))}
         </div>

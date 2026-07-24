@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
 import {
-  Loader2, AlertTriangle, RefreshCw, ClipboardCheck, ListChecks, MessageSquareHeart,
+  AlertTriangle, RefreshCw, ClipboardCheck, ListChecks, MessageSquareHeart,
   CheckCircle2, Clock, Trophy, ArrowRight,
 } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
+import { SkeletonGrid } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import AssessmentRunner from "@/pages/obe/AssessmentRunner";
 
@@ -56,20 +58,28 @@ export default function ObeList({ kind }) {
         <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /> Refresh</Button>
       </div>
 
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="flex h-48 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <SkeletonGrid items={4} />
+        </motion.div>
       ) : error ? (
+        <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
           <AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p>
           <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
+        </motion.div>
       ) : (items || []).length === 0 ? (
+        <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-16 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-500/20"><Icon className="h-7 w-7" /></span>
           <p className="font-display text-lg font-semibold">Nothing here yet</p>
           <p className="max-w-sm text-sm text-muted-foreground">No {isQuiz ? "quizzes" : "surveys"} have been published for your subjects yet.</p>
         </CardContent></Card>
+        </motion.div>
       ) : (
+        <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <div className="grid gap-3 sm:grid-cols-2">
           {items.map((a) => {
             const s = STATUS[a.status] || STATUS.NOT_STARTED;
@@ -105,7 +115,9 @@ export default function ObeList({ kind }) {
             );
           })}
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

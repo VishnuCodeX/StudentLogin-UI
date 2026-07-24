@@ -1,6 +1,7 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, CreditCard, Send, CheckCircle2, Clock } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
@@ -9,6 +10,7 @@ import { goToGateway, handlePaymentReturn } from "@/lib/payments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 function StatusBadge({ status }) {
   const map = {
@@ -97,39 +99,56 @@ export default function ReIssueIdCard() {
       </Card>
 
       {/* Requests list */}
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="flex h-40 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…</div>
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <SkeletonList rows={3} />
+        </motion.div>
       ) : error ? (
+        <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-12 text-center">
           <AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p>
           <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
+        </motion.div>
       ) : (
+        <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card>
           <CardHeader><CardTitle>My Requests</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            {(list || []).length === 0 && <p className="py-4 text-sm text-muted-foreground">You have no re-issue requests yet.</p>}
-            {(list || []).map((r) => (
-              <div key={r.id} className="flex items-center gap-3 rounded-2xl border border-border p-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-fuchsia-400 to-purple-600 text-white"><CreditCard className="h-5 w-5" /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{r.reason || "ID Card Re-Issue"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {r.appliedDate} {r.regAmount && `· ₹${r.regAmount}`} {r.paid ? "· Paid" : "· Payment pending"}
-                  </p>
-                </div>
-                {!r.paid ? (
-                  <Button size="sm" variant="gradient" disabled={paying === r.id} onClick={() => payFee(r.id)}>
-                    {paying === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />} Pay ₹{r.regAmount}
-                  </Button>
-                ) : (
-                  <StatusBadge status={r.status} />
-                )}
+          <CardContent className={(list || []).length === 0 ? "" : "space-y-2"}>
+            {(list || []).length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-12 text-center">
+                <span className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-400 to-purple-600 text-white">
+                  <CreditCard className="h-7 w-7" />
+                </span>
+                <p className="font-display text-lg font-semibold">You have no re-issue requests yet.</p>
+                <p className="max-w-sm text-sm text-muted-foreground">Submit a request above if you need a new or replacement ID card.</p>
               </div>
-            ))}
+            ) : (
+              (list || []).map((r) => (
+                <div key={r.id} className="flex items-center gap-3 rounded-2xl border border-border p-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-fuchsia-400 to-purple-600 text-white"><CreditCard className="h-5 w-5" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{r.reason || "ID Card Re-Issue"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.appliedDate} {r.regAmount && `· ₹${r.regAmount}`} {r.paid ? "· Paid" : "· Payment pending"}
+                    </p>
+                  </div>
+                  {!r.paid ? (
+                    <Button size="sm" variant="gradient" disabled={paying === r.id} onClick={() => payFee(r.id)}>
+                      {paying === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />} Pay ₹{r.regAmount}
+                    </Button>
+                  ) : (
+                    <StatusBadge status={r.status} />
+                  )}
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -75,7 +75,7 @@ export const NAV_SECTIONS = [
       { to: "/apply/certificates", label: "Apply for Certificates" },
       { to: "/apply/cee", label: "CEE/SEC Application" },
       { to: "/apply/cee-receipts", label: "CEE Receipts" },
-      { to: "/apply/attendance-shortage-fine", label: "Attendance Shortage Fine" },
+      // { to: "/apply/attendance-shortage-fine", label: "Attendance Shortage Fine" },
       { to: "/apply/idc", label: "Inter/Multi-disciplinary Course" },
       { to: "/apply/misc-payments", label: "Miscellaneous Payments" },
     ],

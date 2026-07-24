@@ -171,15 +171,17 @@ function SidebarInner({ onNavigate }) {
         ))}
       </nav>
       <div className="border-t border-border p-3">
-        <button
+        <motion.button
           onClick={logout}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
           className="flex w-full items-center gap-3 rounded-2xl px-2.5 py-2 text-sm font-bold text-destructive transition-colors hover:bg-destructive/10"
         >
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-destructive/10 text-destructive">
             <LogOut className="h-[17px] w-[17px]" />
           </span>
           Logout
-        </button>
+        </motion.button>
       </div>
       {/* footer bar */}
       <div className="border-t border-border bg-muted/50 px-3 py-3 flex justify-center">
@@ -207,13 +209,15 @@ export default function Sidebar({ open, onClose }) {
             open ? "translate-x-0" : "-translate-x-full"
           )}
         >
-          <button
+          <motion.button
             onClick={onClose}
+            whileTap={{ scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
             className="absolute right-3 top-4 z-10 grid h-9 w-9 place-items-center rounded-lg text-muted-foreground hover:bg-muted"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" />
-          </button>
+          </motion.button>
           <SidebarInner onNavigate={onClose} />
         </aside>
       </div>

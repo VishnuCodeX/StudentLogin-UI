@@ -1,10 +1,12 @@
 // Developed By: Vishnukarthick K
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
-import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, ClipboardCheck } from "@/lib/icons";
+import { AlertTriangle, CheckCircle2, RefreshCw, ClipboardCheck } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
+import { SkeletonTable } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import AbsenceModal from "@/components/AbsenceModal";
 import PresentModal from "@/components/PresentModal";
@@ -26,18 +28,89 @@ function toneGradCss(pct) {
    variant-driven motion.div, whose variant propagation suppresses a child's
    object `animate`. CSS is immune to that. */
 function BarChart({ subjects }) {
-  const data = subjects.filter((s) => s.conductedClasses > 0);
+  const data = useMemo(() => subjects.filter((s) => s.conductedClasses > 0), [subjects]);
   const [grown, setGrown] = useState(false);
   useEffect(() => { const t = setTimeout(() => setGrown(true), 60); return () => clearTimeout(t); }, []);
-  if (!data.length) return <p className="py-10 text-center text-sm text-muted-foreground">No data to chart.</p>;
+
+  // Row list is kept in local state (a superset of `data`) so a row that just dropped out of
+  // the semester filter can stay mounted long enough to fade/shrink out, and so the rows that
+  // remain can be FLIP-repositioned — all via direct style + CSS transition (no framer-motion
+  // object animate props), consistent with the width fill above.
+  const makeRow = (s) => ({ key: s.subjectCode, subject: s, leaving: false });
+  const [rows, setRows] = useState(() => data.map(makeRow));
+  const nodeRefs = useRef(new Map());
+  const firstRectsRef = useRef(new Map());
+  const isFirstRun = useRef(true);
+  const leaveTimers = useRef(new Map());
+
+  const captureRects = () => {
+    const rects = new Map();
+    nodeRefs.current.forEach((el, key) => { if (el) rects.set(key, el.getBoundingClientRect()); });
+    firstRectsRef.current = rects;
+  };
+
+  useEffect(() => () => leaveTimers.current.forEach((t) => clearTimeout(t)), []);
+
+  useLayoutEffect(() => {
+    if (isFirstRun.current) { isFirstRun.current = false; return; }
+    captureRects();
+
+    const nextKeys = new Set(data.map((s) => s.subjectCode));
+    const newlyLeavingKeys = rows.filter((r) => !r.leaving && !nextKeys.has(r.key)).map((r) => r.key);
+
+    setRows((prev) => {
+      const kept = prev.map((r) =>
+        nextKeys.has(r.key) ? makeRow(data.find((s) => s.subjectCode === r.key)) : { ...r, leaving: true }
+      );
+      const presentKeys = new Set(kept.map((r) => r.key));
+      const arriving = data.filter((s) => !presentKeys.has(s.subjectCode)).map(makeRow);
+      return [...kept, ...arriving];
+    });
+
+    newlyLeavingKeys.forEach((key) => {
+      if (leaveTimers.current.has(key)) clearTimeout(leaveTimers.current.get(key));
+      const t = setTimeout(() => {
+        leaveTimers.current.delete(key);
+        captureRects();
+        setRows((prev) => prev.filter((r) => r.key !== key));
+      }, 320);
+      leaveTimers.current.set(key, t);
+    });
+  }, [data]);
+
+  useLayoutEffect(() => {
+    rows.forEach((r) => {
+      const el = nodeRefs.current.get(r.key);
+      const first = el && firstRectsRef.current.get(r.key);
+      if (!el || !first) return;
+      const last = el.getBoundingClientRect();
+      const dx = first.left - last.left;
+      const dy = first.top - last.top;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+      el.style.transition = "none";
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      el.getBoundingClientRect(); // force reflow so the jump above isn't itself animated
+      requestAnimationFrame(() => {
+        el.style.transition = "transform 320ms cubic-bezier(.22,1,.36,1)";
+        el.style.transform = "";
+      });
+    });
+  }, [rows]);
+
+  if (!rows.length) return <p className="py-10 text-center text-sm text-muted-foreground">No data to chart.</p>;
   return (
     <div className="space-y-4">
-      {data.map((s, i) => {
+      {rows.map((r, i) => {
+        const s = r.subject;
         const v = Math.max(0, Math.min(100, s.percentageWithoutLeave));
         const col = tone(s.percentageWithoutLeave);
         const delay = i * 0.07;
         return (
-          <div key={i} className="group">
+          <div
+            key={r.key}
+            ref={(el) => { if (el) nodeRefs.current.set(r.key, el); else nodeRefs.current.delete(r.key); }}
+            className={`group transition-[opacity,transform] duration-300 ease-out ${r.leaving ? "pointer-events-none scale-95 opacity-0" : "scale-100 opacity-100"}`}
+          >
             <div className="mb-1.5 flex items-baseline justify-between gap-3">
               <div className="min-w-0">
                 <span className="text-sm font-semibold">{s.subjectName}</span>
@@ -177,14 +250,46 @@ export default function Attendance() {
       s.semester != null ? s.semester === semFilter : semFilter === data?.currentSemester
     );
   }, [subjects, semFilter, data]);
+  // Totals strip follows the same semester filter as the table/chart below — summed from
+  // shownSubjects (not the backend's all-semesters data.totalConducted etc.) so picking a
+  // semester shows just that semester's figures, and "All" naturally shows everything since
+  // shownSubjects already equals the full subjects list in that case.
+  const totals = useMemo(
+    () => shownSubjects.reduce(
+      (acc, s) => ({
+        conducted: acc.conducted + (s.conductedClasses || 0),
+        present: acc.present + (s.classesPresent || 0),
+        absent: acc.absent + (s.classesAbsent || 0),
+        leave: acc.leave + (s.leaveApproved || 0) + (s.cocurricularLeave || 0),
+      }),
+      { conducted: 0, present: 0, absent: 0, leave: 0 }
+    ),
+    [shownSubjects]
+  );
 
-  if (loading) return <div className="flex h-64 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading attendance…</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <PageTitle icon={ClipboardCheck}>Attendance</PageTitle>
+            <p className="text-sm text-muted-foreground">{data?.studentName} · {data?.className}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /> Refresh</Button>
+        </div>
+        <div className="space-y-5">
+          <SkeletonTable rows={5} cols={6} />
+          <SkeletonTable rows={3} cols={6} />
+        </div>
+      </div>
+    );
+  }
   if (error) return <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center"><AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p><Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button></CardContent></Card>;
 
   const activities = data?.activities || [];
   const presentWithCl = data?.overallPercentageWithLeave ?? 0;
   const overallNoCl = data?.overallPercentageWithoutLeave ?? 0;
-  const chip = (on) => `rounded-full px-4 py-1.5 text-sm font-semibold transition ${on ? "bg-joy text-white shadow-card" : "bg-muted text-muted-foreground hover:bg-muted/70"}`;
+  const chip = (on) => `rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${on ? "bg-joy text-white shadow-card" : "bg-muted text-muted-foreground hover:bg-muted/70"}`;
 
   return (
     <div className="space-y-6">
@@ -212,11 +317,19 @@ export default function Attendance() {
         </div>
       )}
 
+      {/* totals strip — follows the semester filter below */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatTile label="Conducted" value={totals.conducted} />
+        <StatTile label="Present" value={totals.present} tone="text-success" />
+        <StatTile label="Absent" value={totals.absent} tone="text-destructive" />
+        <StatTile label="On Leave" value={totals.leave} tone="text-amber-600" />
+      </div>
+
       {/* tabs */}
       <div className="flex flex-wrap gap-2">
         {TABS.map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${tab === id ? "bg-joy text-white" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>{label}</button>
+          <motion.button key={id} onClick={() => setTab(id)} whileTap={{ scale: 0.96 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${tab === id ? "bg-joy text-white" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>{label}</motion.button>
         ))}
       </div>
 
@@ -225,9 +338,9 @@ export default function Attendance() {
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Semester</span>
           {semesters.map((n) => (
-            <button key={n} onClick={() => setSemFilter(n)} className={chip(semFilter === n)}>Sem {n}</button>
+            <motion.button key={n} onClick={() => setSemFilter(n)} whileTap={{ scale: 0.96 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className={chip(semFilter === n)}>Sem {n}</motion.button>
           ))}
-          <button onClick={() => setSemFilter("ALL")} className={chip(semFilter === "ALL")}>All</button>
+          <motion.button onClick={() => setSemFilter("ALL")} whileTap={{ scale: 0.96 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className={chip(semFilter === "ALL")}>All</motion.button>
         </div>
       )}
 
@@ -266,6 +379,17 @@ export default function Attendance() {
   );
 }
 
+function StatTile({ label, value, tone: toneCls = "text-foreground" }) {
+  return (
+    <Card>
+      <CardContent className="p-4 text-center">
+        <p className={`font-display text-2xl font-bold tabular-nums ${toneCls}`}>{value ?? "—"}</p>
+        <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function AttendanceSection({ title, subtitle, rows, firstColLabel, onAbsent, onPresent }) {
   return (
     <>
@@ -288,28 +412,38 @@ function AttendanceSection({ title, subtitle, rows, firstColLabel, onAbsent, onP
                 </tr>
               </thead>
               <tbody>
-                {rows.map((s, i) => (
-                  <tr key={`${s.subjectCode}-${i}`} className="border-b border-border last:border-0 hover:bg-muted/40">
-                    <td className="px-5 py-3"><p className="font-medium">{s.subjectName}</p><p className="text-xs text-muted-foreground">{s.subjectCode}</p></td>
-                    <td className="px-3 py-3 text-center tabular-nums">{s.conductedClasses}</td>
-                    <td className="px-3 py-3 text-center">
-                      {s.classesPresent > 0 && s.subjectId ? (
-                        <button onClick={() => onPresent(s)} className="font-bold text-success underline decoration-dotted underline-offset-2 hover:opacity-80 tabular-nums">{s.classesPresent}</button>
-                      ) : (
-                        <span className="tabular-nums text-success">{s.classesPresent}</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      {s.classesAbsent > 0 && s.subjectId ? (
-                        <button onClick={() => onAbsent(s)} className="font-bold text-destructive underline decoration-dotted underline-offset-2 hover:opacity-80 tabular-nums">{s.classesAbsent}</button>
-                      ) : (
-                        <span className="tabular-nums text-destructive">{s.classesAbsent}</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-center"><span className="font-bold" style={{ color: tone(s.percentageWithoutLeave) }}>{s.percentageWithoutLeave}%</span></td>
-                    <td className="px-5 py-3 text-center font-medium tabular-nums">{s.percentageWithLeave}%</td>
-                  </tr>
-                ))}
+                <AnimatePresence initial={false}>
+                  {rows.map((s, i) => (
+                    <motion.tr
+                      key={s.subjectCode ?? i}
+                      layout
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      transition={{ duration: 0.2 }}
+                      className="border-b border-border last:border-0 hover:bg-muted/40"
+                    >
+                      <td className="px-5 py-3"><p className="font-medium">{s.subjectName}</p><p className="text-xs text-muted-foreground">{s.subjectCode}</p></td>
+                      <td className="px-3 py-3 text-center tabular-nums">{s.conductedClasses}</td>
+                      <td className="px-3 py-3 text-center">
+                        {s.classesPresent > 0 && s.subjectId ? (
+                          <motion.button onClick={() => onPresent(s)} whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="font-bold text-success underline decoration-dotted underline-offset-2 hover:opacity-80 tabular-nums">{s.classesPresent}</motion.button>
+                        ) : (
+                          <span className="tabular-nums text-success">{s.classesPresent}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        {s.classesAbsent > 0 && s.subjectId ? (
+                          <motion.button onClick={() => onAbsent(s)} whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="font-bold text-destructive underline decoration-dotted underline-offset-2 hover:opacity-80 tabular-nums">{s.classesAbsent}</motion.button>
+                        ) : (
+                          <span className="tabular-nums text-destructive">{s.classesAbsent}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-center"><span className="font-bold" style={{ color: tone(s.percentageWithoutLeave) }}>{s.percentageWithoutLeave}%</span></td>
+                      <td className="px-5 py-3 text-center font-medium tabular-nums">{s.percentageWithLeave}%</td>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
               </tbody>
             </table>
           </div>
@@ -330,13 +464,13 @@ function AttendanceSection({ title, subtitle, rows, firstColLabel, onAbsent, onP
                 <div><p className="font-semibold">{s.conductedClasses}</p><p className="text-muted-foreground">Held</p></div>
                 <div>
                   {s.classesPresent > 0 && s.subjectId ? (
-                    <button onClick={() => onPresent(s)} className="font-semibold text-success underline decoration-dotted">{s.classesPresent}</button>
+                    <motion.button onClick={() => onPresent(s)} whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="font-semibold text-success underline decoration-dotted">{s.classesPresent}</motion.button>
                   ) : <p className="font-semibold text-success">{s.classesPresent}</p>}
                   <p className="text-muted-foreground">Present</p>
                 </div>
                 <div>
                   {s.classesAbsent > 0 && s.subjectId ? (
-                    <button onClick={() => onAbsent(s)} className="font-semibold text-destructive underline decoration-dotted">{s.classesAbsent}</button>
+                    <motion.button onClick={() => onAbsent(s)} whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="font-semibold text-destructive underline decoration-dotted">{s.classesAbsent}</motion.button>
                   ) : <p className="font-semibold text-destructive">{s.classesAbsent}</p>}
                   <p className="text-muted-foreground">Absent</p>
                 </div>

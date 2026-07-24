@@ -1,20 +1,22 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, Home, CalendarDays, Send, X, BedDouble } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton, SkeletonCard, SkeletonTable } from "@/components/ui/skeleton";
 
 const SESSIONS = ["Morning", "Evening"];
 
 function statusPill(s) {
   const map = {
-    Approved: "bg-emerald-100 text-emerald-700",
-    Pending: "bg-amber-100 text-amber-700",
-    Rejected: "bg-rose-100 text-rose-700",
+    Approved: "bg-success/15 text-success",
+    Pending: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+    Rejected: "bg-destructive/15 text-destructive",
     Cancelled: "bg-muted text-muted-foreground",
   };
   return map[s] || "bg-muted text-muted-foreground";
@@ -77,23 +79,42 @@ export default function HostelLeave() {
         <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /> Refresh</Button>
       </div>
 
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="flex h-48 items-center justify-center text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <div className="space-y-6">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <SkeletonCard lines={4} />
+          <SkeletonTable rows={4} cols={5} />
         </div>
+        </motion.div>
       ) : error ? (
+        <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
           <AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p>
           <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
+        </motion.div>
       ) : !data?.hasHostel ? (
+        <motion.div key="no-hostel" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-16 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-muted text-muted-foreground"><Home className="h-7 w-7" /></span>
           <p className="font-display text-lg font-semibold">No active hostel admission</p>
           <p className="max-w-sm text-sm text-muted-foreground">Hostel leave is available only to checked-in resident students.</p>
         </CardContent></Card>
+        </motion.div>
       ) : (
-        <>
+        <motion.div key="content" className="space-y-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
           {/* residence summary */}
           <div className="grid gap-3 sm:grid-cols-3">
             {[["Hostel", data.hostelName, Home], ["Room", data.roomName, BedDouble], ["Bed", data.bedNo, BedDouble]].map(([label, val, Icon]) => (
@@ -180,9 +201,9 @@ export default function HostelLeave() {
                           </td>
                           <td className="px-6 py-3 text-right">
                             {l.status !== "Cancelled" && l.status !== "Rejected" && (
-                              <button onClick={() => cancel(l.id)} className="inline-flex items-center gap-1 text-xs font-semibold text-destructive hover:underline">
+                              <motion.button onClick={() => cancel(l.id)} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className="inline-flex items-center gap-1 text-xs font-semibold text-destructive hover:underline">
                                 <X className="h-3.5 w-3.5" /> Cancel
-                              </button>
+                              </motion.button>
                             )}
                           </td>
                         </tr>
@@ -193,8 +214,9 @@ export default function HostelLeave() {
               )}
             </CardContent>
           </Card>
-        </>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

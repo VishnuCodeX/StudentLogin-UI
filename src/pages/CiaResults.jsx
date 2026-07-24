@@ -1,11 +1,13 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
-import { Loader2, AlertTriangle, RefreshCw, ClipboardList, FileBarChart } from "@/lib/icons";
+import { AlertTriangle, RefreshCw, ClipboardList, FileBarChart } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SkeletonTable } from "@/components/ui/skeleton";
 
 const num = (v) => (v == null ? "—" : v);
 
@@ -36,16 +38,23 @@ export default function CiaResults() {
         <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /> Refresh</Button>
       </div>
 
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="flex h-48 items-center justify-center text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <div className="space-y-6">
+          <SkeletonTable rows={4} cols={10} />
+          <SkeletonTable rows={4} cols={10} />
         </div>
+        </motion.div>
       ) : error ? (
+        <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
           <AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p>
           <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
+        </motion.div>
       ) : (exams || []).length === 0 ? (
+        <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-16 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-500/20">
             <ClipboardList className="h-7 w-7" />
@@ -55,7 +64,9 @@ export default function CiaResults() {
             Your internal assessment marks will appear here once the college publishes them.
           </p>
         </CardContent></Card>
+        </motion.div>
       ) : (
+        <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <div className="space-y-6">
           {exams.map((ex) => (
             <Card key={ex.examId}>
@@ -129,7 +140,9 @@ export default function CiaResults() {
             </Card>
           ))}
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

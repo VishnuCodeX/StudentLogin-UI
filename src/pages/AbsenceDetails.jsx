@@ -1,11 +1,13 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
-import { Loader2, AlertTriangle, RefreshCw, CalendarX, CheckCircle2 } from "@/lib/icons";
+import { AlertTriangle, RefreshCw, CalendarX, CheckCircle2 } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 function tag(type) {
   if (type === "Co-curricular Leave") return "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300";
@@ -42,7 +44,7 @@ export default function AbsenceDetails() {
     if (semFilter === "ALL") return allRows;
     return allRows.filter((r) => r.semester === semFilter);
   }, [allRows, semFilter]);
-  const chip = (on) => `rounded-full px-4 py-1.5 text-sm font-semibold transition ${on ? "bg-joy text-white shadow-card" : "bg-muted text-muted-foreground hover:bg-muted/70"}`;
+  const chip = (on) => `rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${on ? "bg-joy text-white shadow-card" : "bg-muted text-muted-foreground hover:bg-muted/70"}`;
 
   // group by date
   const byDate = {};
@@ -62,22 +64,29 @@ export default function AbsenceDetails() {
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Semester</span>
           {semesters.map((n) => (
-            <button key={n} onClick={() => setSemFilter(n)} className={chip(semFilter === n)}>Sem {n}</button>
+            <motion.button key={n} onClick={() => setSemFilter(n)} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className={chip(semFilter === n)}>Sem {n}</motion.button>
           ))}
-          <button onClick={() => setSemFilter("ALL")} className={chip(semFilter === "ALL")}>All</button>
+          <motion.button onClick={() => setSemFilter("ALL")} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className={chip(semFilter === "ALL")}>All</motion.button>
         </div>
       )}
 
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="flex h-48 items-center justify-center text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <div className="space-y-4">
+          <SkeletonList rows={3} />
+          <SkeletonList rows={3} />
         </div>
+        </motion.div>
       ) : error ? (
+        <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
           <AlertTriangle className="h-8 w-8 text-destructive" /><p className="font-medium">{error}</p>
           <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
+        </motion.div>
       ) : allRows.length === 0 ? (
+        <motion.div key="empty-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-16 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20">
             <CheckCircle2 className="h-7 w-7" />
@@ -85,9 +94,13 @@ export default function AbsenceDetails() {
           <p className="font-display text-lg font-semibold">Perfect attendance! 🎉</p>
           <p className="max-w-sm text-sm text-muted-foreground">You have no recorded absences. Keep it up!</p>
         </CardContent></Card>
+        </motion.div>
       ) : shownRows.length === 0 ? (
+        <motion.div key="empty-filtered" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="py-14 text-center text-muted-foreground">No absences in this semester.</CardContent></Card>
+        </motion.div>
       ) : (
+        <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <div className="space-y-4">
           {Object.entries(byDate).map(([date, items]) => (
             <Card key={date}>
@@ -114,7 +127,9 @@ export default function AbsenceDetails() {
             </Card>
           ))}
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

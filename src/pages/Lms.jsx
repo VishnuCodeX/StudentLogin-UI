@@ -1,12 +1,14 @@
 // Developed By: Vishnukarthick K
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageTitle from "@/components/PageTitle";
 import { Loader2, AlertTriangle, RefreshCw, FileText, Download, BookOpen, ExternalLink } from "@/lib/icons";
 import api, { unwrap } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton, SkeletonList } from "@/components/ui/skeleton";
 
 function sizeLabel(bytes) {
   if (!bytes) return "";
@@ -84,17 +86,30 @@ export default function Lms({ kind = "materials" }) {
         </Button>
       </div>
 
+      <AnimatePresence mode="wait">
       {loading ? (
-        <div className="flex h-48 items-center justify-center text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
+        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <div className="space-y-5">
+          <Card><CardContent className="p-5">
+            <Skeleton className="mb-3 h-4 w-32" />
+            <SkeletonList rows={3} />
+          </CardContent></Card>
+          <Card><CardContent className="p-5">
+            <Skeleton className="mb-3 h-4 w-32" />
+            <SkeletonList rows={2} />
+          </CardContent></Card>
         </div>
+        </motion.div>
       ) : error ? (
+        <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-14 text-center">
           <AlertTriangle className="h-8 w-8 text-destructive" />
           <p className="font-medium">{error}</p>
           <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Retry</Button>
         </CardContent></Card>
+        </motion.div>
       ) : (files || []).length === 0 ? (
+        <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <Card><CardContent className="flex flex-col items-center gap-3 py-16 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20">
             <BookOpen className="h-7 w-7" />
@@ -102,7 +117,9 @@ export default function Lms({ kind = "materials" }) {
           <p className="font-display text-lg font-semibold">No materials yet</p>
           <p className="max-w-sm text-sm text-muted-foreground">Your faculty haven’t uploaded course materials for this semester yet. Check back soon!</p>
         </CardContent></Card>
+        </motion.div>
       ) : (
+        <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <div className="space-y-5">
           {Object.entries(groups).map(([subject, items]) => (
             <Card key={subject}>
@@ -142,7 +159,9 @@ export default function Lms({ kind = "materials" }) {
             </Card>
           ))}
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
