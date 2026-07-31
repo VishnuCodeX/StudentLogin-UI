@@ -374,10 +374,16 @@ export default function PlacementInternational() {
                 Save Details
               </Button>
               {d.registered && d.regType && (
-                <Button type="button" variant="outline" onClick={pay} disabled={paying}>
-                  {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                  Pay ₹{d.regAmount}
-                </Button>
+                regType !== d.regType ? (
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                    You changed the package above — click Save Details to update your payment amount.
+                  </p>
+                ) : (
+                  <Button type="button" variant="outline" onClick={pay} disabled={paying}>
+                    {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                    Pay ₹{d.regAmount}
+                  </Button>
+                )
               )}
             </div>
           </form>
